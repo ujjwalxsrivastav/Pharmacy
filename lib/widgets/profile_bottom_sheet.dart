@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/pharmacy_profile.dart';
+import '../providers/providers.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 
@@ -264,12 +265,13 @@ void _showEditProfileDialog(
 
                         setState(() => isSaving = true);
                         try {
+                          final loc = ref.read(pharmacyLocationFutureProvider).valueOrNull;
+                          final docPath = loc?.path ?? 'pharmacies/${profile.uid}';
+
                           await ref
                               .read(authServiceProvider)
                               .updatePharmacyProfile(
-                                uid: profile.uid,
-                                city: profile.city,
-                                area: profile.area,
+                                docPath: docPath,
                                 pharmacyName: nameCtrl.text.trim(),
                                 handlerName: handlerCtrl.text.trim(),
                               );

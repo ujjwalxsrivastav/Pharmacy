@@ -4,14 +4,16 @@ import '../models/medicine.dart';
 import '../models/sale.dart';
 import '../providers/providers.dart';
 
-/// Holds the resolved location path for the logged-in pharmacy.
+/// Holds the resolved reference path for the logged-in pharmacy.
 class PharmacyLocation {
-  final String uid;
+  final String docId;
+  final String path; // e.g. "pharmacies/Test" or "cities/dehradun/areas/selaqui/pharmacies/Test"
   final String city;
   final String area;
 
   const PharmacyLocation({
-    required this.uid,
+    required this.docId,
+    required this.path,
     required this.city,
     required this.area,
   });
@@ -23,17 +25,9 @@ class DatabaseService {
 
   DatabaseService({required this.location});
 
-  // ─── Base reference ────────────────────────────────────────────────────
-  // cities/{city}/areas/{area}/pharmacies/{uid}
-  DocumentReference get _pharmacyRef => _db
-      .collection('cities')
-      .doc(location.city)
-      .collection('areas')
-      .doc(location.area)
-      .collection('pharmacies')
-      .doc(location.uid);
+  DocumentReference get _pharmacyRef => _db.doc(location.path);
 
-  // ─── Stock ────────────────────────────────────────────────────────────
+  // ─── Stock (subcollection /stock) ─────────────────────────────────────────
   CollectionReference get _stockRef => _pharmacyRef.collection('stock');
 
   Stream<List<Medicine>> getMedicinesStream() {
@@ -58,7 +52,7 @@ class DatabaseService {
     await _stockRef.doc(id).delete();
   }
 
-  // ─── Sales ─────────────────────────────────────────────────────────────
+  // ─── Sales (subcollection /sales) ─────────────────────────────────────────
   CollectionReference get _salesRef => _pharmacyRef.collection('sales');
 
   Stream<List<Sale>> getSalesStream() {

@@ -47,16 +47,10 @@ final pharmacyLocationFutureProvider = FutureProvider<PharmacyLocation?>((ref) a
   final user = ref.watch(authUserProvider).valueOrNull;
   if (user == null) return null;
 
-  final path = await ref.read(authServiceProvider).resolvePharmacyPath(
+  return await ref.read(authServiceProvider).resolvePharmacyLocation(
         user.uid,
         user.email ?? '',
       );
-
-  return PharmacyLocation(
-    uid: user.uid,
-    city: path['city']!,
-    area: path['area']!,
-  );
 });
 
 // ─── Pharmacy Profile ─────────────────────────────────────────────────────────
@@ -64,9 +58,7 @@ final pharmacyProfileProvider = StreamProvider<PharmacyProfile?>((ref) {
   final locAsync = ref.watch(pharmacyLocationFutureProvider);
   final loc = locAsync.valueOrNull;
   if (loc == null) return Stream.value(null);
-  return ref
-      .watch(authServiceProvider)
-      .pharmacyProfileStream(loc.uid, loc.city, loc.area);
+  return ref.watch(authServiceProvider).pharmacyProfileStream(loc.path);
 });
 
 // ─── Stock Stream ────────────────────────────────────────────────────────────
