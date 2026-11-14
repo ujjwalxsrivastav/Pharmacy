@@ -2,10 +2,118 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allows authenticated users to access their pharmacy and its nested data
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+
+    // ── Helper Functions ─────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function getUserPharmacyId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.pharmacyId;
+    }
+
+    function isPharmacyOwner(pharmacyId) {
+      return isAuthenticated() && (
+        request.auth.uid == pharmacyId ||
+        getUserPharmacyId() == pharmacyId
+      );
+    }
+
+    // ── Users (Canonical Identity) ───────────────────────────
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ── Fast Index ───────────────────────────────────────────
+    match /pharmacyIndex/{pharmacyId} {
+      allow read: if isAuthenticated();
+      allow write: if isPharmacyOwner(pharmacyId);
+    }
+
+    // ── Root Pharmacies Collection ───────────────────────────
+    match /pharmacies/{pharmacyId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isPharmacyOwner(pharmacyId) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified']));
+      allow delete: if isPharmacyOwner(pharmacyId);
+
+      // Inventory Catalog
+      match /stock/{medicineId} {
+        allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+
+      // Sales & Invoices
+      match /sales/{saleId} {
+        allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+
+      // Bill Number Sequential Counters
+      match /counters/{counterId} {
+        allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+
+      // Purchase Orders
+      match /purchaseOrders/{poId} {
+        allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+
+      // Suppliers
+      match /suppliers/{supplierId} {
+        allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+    }
+
+    // ── Hierarchical Mirror (cities > areas > pharmacies) ─────
+    match /cities/{cityId}/areas/{areaId}/pharmacies/{pharmacyId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isPharmacyOwner(pharmacyId) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified']));
+      allow delete: if isPharmacyOwner(pharmacyId);
+
+      match /stock/{medicineId} {
+        allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+
+      match /sales/{saleId} {
+        allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+
+      match /counters/{counterId} {
+        allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+
+      match /purchaseOrders/{poId} {
+        allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+    }
+
+    // ── Orders (Quick-Commerce Ecosystem) ────────────────────
+    match /orders/{orderId} {
+      // Pharmacy can only read orders assigned to its own pharmacyId
+      allow read: if isAuthenticated() && (
+        resource.data.pharmacyId == request.auth.uid ||
+        resource.data.pharmacyId == getUserPharmacyId()
+      );
+
+      // Pharmacy can only update status transitions (accept, pack, reject)
+      allow update: if isAuthenticated() && (
+        resource.data.pharmacyId == request.auth.uid ||
+        resource.data.pharmacyId == getUserPharmacyId()
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status',
+        'statusHistory',
+        'updatedAt',
+        'rejectionReason'
+      ]);
+
+      // Order creation allowed by authenticated ecosystem services (e.g. customer app)
+      allow create: if isAuthenticated();
     }
   }
 }
-
