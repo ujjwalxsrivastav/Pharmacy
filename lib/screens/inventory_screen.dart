@@ -110,7 +110,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             Expanded(child: ElevatedButton.icon(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.edit), label: const Text('Edit'))),
             const SizedBox(width: 12),
             Expanded(child: ElevatedButton.icon(
-              onPressed: () async { Navigator.pop(context); await ref.read(databaseServiceProvider).deleteMedicine(med.id); },
+              onPressed: () async {
+                Navigator.pop(context);
+                final db = ref.read(databaseServiceProvider);
+                if (db != null) {
+                  await db.deleteMedicine(med.id);
+                }
+              },
               icon: const Icon(Icons.delete_outline), label: const Text('Delete'),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
             )),

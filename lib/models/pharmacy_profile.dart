@@ -19,6 +19,14 @@ class PharmacyProfile {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
+  /// Firestore path: cities/{city}/areas/{area}/pharmacies/{uid}
+  static String firestorePath(String city, String area, String uid) =>
+      'cities/$city/areas/$area/pharmacies/$uid';
+
+  /// Slug-safe key for city / area (lowercase, spaces → underscores)
+  static String toKey(String value) =>
+      value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+
   factory PharmacyProfile.fromMap(Map<String, dynamic> data, String uid) {
     return PharmacyProfile(
       uid: uid,
@@ -33,15 +41,12 @@ class PharmacyProfile {
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'email': email,
-      'pharmacyName': pharmacyName,
-      'handlerName': handlerName,
-      'city': city,
-      'area': area,
-      'createdAt': Timestamp.fromDate(createdAt),
-    };
-  }
+  Map<String, dynamic> toMap() => {
+        'email': email,
+        'pharmacyName': pharmacyName,
+        'handlerName': handlerName,
+        'city': city,
+        'area': area,
+        'createdAt': Timestamp.fromDate(createdAt),
+      };
 }
-

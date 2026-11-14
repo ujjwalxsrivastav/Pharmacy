@@ -3,86 +3,96 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/medicine.dart';
 import '../models/sale.dart';
 
+/// Holds the resolved location path for the logged-in pharmacy.
+class PharmacyLocation {
+  final String uid;
+  final String city;
+  final String area;
+
+  const PharmacyLocation({
+    required this.uid,
+    required this.city,
+    required this.area,
+  });
+}
+
 class DatabaseService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String pharmacyId;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final PharmacyLocation location;
 
-  DatabaseService({required this.pharmacyId});
+  DatabaseService({required this.location});
 
-  // ─── Medicines (pharmacy-scoped) ───────────────────────────────────────
+  // ─── Base reference ────────────────────────────────────────────────────
+  // cities/{city}/areas/{area}/pharmacies/{uid}
+  DocumentReference get _pharmacyRef => _db
+      .collection('cities')
+      .doc(location.city)
+      .collection('areas')
+      .doc(location.area)
+      .collection('pharmacies')
+      .doc(location.uid);
+
+  // ─── Stock ────────────────────────────────────────────────────────────
+  CollectionReference get _stockRef => _pharmacyRef.collection('stock');
+
   Stream<List<Medicine>> getMedicinesStream() {
-    return _firestore
-        .collection('pharmacies')
-        .doc(pharmacyId)
-        .collection('medicines')
+    return _stockRef
         .orderBy('name')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Medicine.fromMap(doc.data(), doc.id))
+        .map((snap) => snap.docs
+            .map((doc) =>
+                Medicine.fromMap(doc.data() as Map<String, dynamic>, doc.id))
             .toList());
   }
 
   Future<void> addMedicine(Medicine medicine) async {
-    await _firestore
-        .collection('pharmacies')
-        .doc(pharmacyId)
-        .collection('medicines')
-        .add(medicine.toMap());
+    await _stockRef.add(medicine.toMap());
   }
 
   Future<void> updateMedicine(String id, Map<String, dynamic> data) async {
-    await _firestore
-        .collection('pharmacies')
-        .doc(pharmacyId)
-        .collection('medicines')
-        .doc(id)
-        .update(data);
+    await _stockRef.doc(id).update(data);
   }
 
   Future<void> deleteMedicine(String id) async {
-    await _firestore
-        .collection('pharmacies')
-        .doc(pharmacyId)
-        .collection('medicines')
-        .doc(id)
-        .delete();
+    await _stockRef.doc(id).delete();
   }
 
-  // ─── Sales (pharmacy-scoped) ───────────────────────────────────────────
+  // ─── Sales ─────────────────────────────────────────────────────────────
+  CollectionReference get _salesRef => _pharmacyRef.collection('sales');
+
   Stream<List<Sale>> getSalesStream() {
-    return _firestore
-        .collection('pharmacies')
-        .doc(pharmacyId)
-        .collection('sales')
+    return _salesRef
         .orderBy('date', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Sale.fromMap(doc.data(), doc.id))
+        .map((snap) => snap.docs
+            .map((doc) =>
+                Sale.fromMap(doc.data() as Map<String, dynamic>, doc.id))
             .toList());
   }
 
   Future<void> addSale(Sale sale) async {
-    await _firestore
-        .collection('pharmacies')
-        .doc(pharmacyId)
-        .collection('sales')
-        .add(sale.toMap());
+    await _salesRef.add(sale.toMap());
   }
 
   Future<void> decrementStock(String medicineId, int quantity) async {
-    await _firestore
-        .collection('pharmacies')
-        .doc(pharmacyId)
-        .collection('medicines')
-        .doc(medicineId)
-        .update({'stock': FieldValue.increment(-quantity)});
+    await _stockRef.doc(medicineId).update({
+      'stock': FieldValue.increment(-quantity),
+    });
   }
 }
 
-final databaseServiceProvider = Provider<DatabaseService>((ref) {
-  final pharmacyId = ref.watch(currentPharmacyIdProvider);
-  return DatabaseService(pharmacyId: pharmacyId ?? '');
-});
+// ─── Providers ────────────────────────────────────────────────────────────────
 
-// Separate provider to hold the current logged-in pharmacy UID
+/// Holds the UID of the logged-in pharmacy (set after login).
 final currentPharmacyIdProvider = StateProvider<String?>((ref) => null);
+
+/// Holds the resolved {city, area} after login lookup.
+final pharmacyLocationProvider =
+    StateProvider<PharmacyLocation?>((ref) => null);
+
+/// Database service — only active when location is known.
+final databaseServiceProvider = Provider<DatabaseService?>((ref) {
+  final loc = ref.watch(pharmacyLocationProvider);
+  if (loc == null) return null;
+  return DatabaseService(location: loc);
+});

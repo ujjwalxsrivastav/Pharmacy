@@ -5,11 +5,12 @@ import '../models/pharmacy_profile.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
 
+  // ─── Sign In ────────────────────────────────────────────────────────────
   Future<UserCredential?> signIn(String email, String password) async {
     return await _auth.signInWithEmailAndPassword(
       email: email.trim(),
@@ -17,6 +18,7 @@ class AuthService {
     );
   }
 
+  // ─── Sign Up ─────────────────────────────────────────────────────────────
   Future<UserCredential?> signUp({
     required String email,
     required String password,
@@ -29,36 +31,63 @@ class AuthService {
       email: email.trim(),
       password: password.trim(),
     );
-
     final uid = credential.user!.uid;
 
-    // Save pharmacy profile under pharmacies/{uid}
+    final cityKey = PharmacyProfile.toKey(city);
+    final areaKey = PharmacyProfile.toKey(area);
+
     final profile = PharmacyProfile(
       uid: uid,
       email: email.trim(),
       pharmacyName: pharmacyName.trim(),
       handlerName: handlerName.trim(),
-      city: city.trim(),
-      area: area.trim(),
+      city: cityKey,
+      area: areaKey,
     );
 
-    await _firestore
-        .collection('pharmacies')
-        .doc(uid)
-        .set(profile.toMap());
+    final batch = _db.batch();
 
+    // 1. Full hierarchical path:
+    //    cities/{city}/areas/{area}/pharmacies/{uid}
+    final pharmacyRef = _db
+        .collection('cities')
+        .doc(cityKey)
+        .collection('areas')
+        .doc(areaKey)
+        .collection('pharmacies')
+        .doc(uid);
+    batch.set(pharmacyRef, profile.toMap());
+
+    // 2. Index doc for fast lookup on login:
+    //    pharmacyIndex/{uid} → { city, area }
+    final indexRef = _db.collection('pharmacyIndex').doc(uid);
+    batch.set(indexRef, {
+      'city': cityKey,
+      'area': areaKey,
+      'pharmacyName': pharmacyName.trim(),
+      'email': email.trim(),
+    });
+
+    await batch.commit();
     return credential;
   }
 
-  Future<PharmacyProfile?> getPharmacyProfile(String uid) async {
-    final doc =
-        await _firestore.collection('pharmacies').doc(uid).get();
-    if (!doc.exists) return null;
-    return PharmacyProfile.fromMap(doc.data()!, uid);
+  // ─── Resolve path from index ─────────────────────────────────────────────
+  Future<Map<String, String>?> resolvePharmacyPath(String uid) async {
+    final snap = await _db.collection('pharmacyIndex').doc(uid).get();
+    if (!snap.exists) return null;
+    final d = snap.data()!;
+    return {'city': d['city'] as String, 'area': d['area'] as String};
   }
 
-  Stream<PharmacyProfile?> pharmacyProfileStream(String uid) {
-    return _firestore
+  // ─── Profile stream ───────────────────────────────────────────────────────
+  Stream<PharmacyProfile?> pharmacyProfileStream(
+      String uid, String city, String area) {
+    return _db
+        .collection('cities')
+        .doc(city)
+        .collection('areas')
+        .doc(area)
         .collection('pharmacies')
         .doc(uid)
         .snapshots()
@@ -66,10 +95,7 @@ class AuthService {
             snap.exists ? PharmacyProfile.fromMap(snap.data()!, uid) : null);
   }
 
-  Future<void> signOut() async {
-    await _auth.signOut();
-  }
+  Future<void> signOut() async => await _auth.signOut();
 }
 
-final authServiceProvider =
-    Provider<AuthService>((ref) => AuthService());
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());

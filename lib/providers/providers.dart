@@ -6,7 +6,7 @@ import '../models/medicine.dart';
 import '../models/sale.dart';
 import '../models/pharmacy_profile.dart';
 
-// ─── Theme ───────────────────────────────────────────────────────────────────
+// ─── Theme ────────────────────────────────────────────────────────────────────
 class ThemeModeNotifier extends Notifier<bool> {
   @override
   bool build() => false;
@@ -37,28 +37,33 @@ final inventorySearchProvider =
     NotifierProvider<InventorySearchNotifier, String>(
         InventorySearchNotifier.new);
 
-// ─── Current Auth User ────────────────────────────────────────────────────────
+// ─── Auth User ────────────────────────────────────────────────────────────────
 final authUserProvider = StreamProvider<User?>((ref) {
   return ref.watch(authServiceProvider).authStateChanges;
 });
 
-// ─── Current Pharmacy Profile ─────────────────────────────────────────────────
+// ─── Pharmacy Profile ─────────────────────────────────────────────────────────
+// Streams from: cities/{city}/areas/{area}/pharmacies/{uid}
 final pharmacyProfileProvider = StreamProvider<PharmacyProfile?>((ref) {
-  final userAsync = ref.watch(authUserProvider);
-  final uid = userAsync.valueOrNull?.uid;
-  if (uid == null) return Stream.value(null);
-  return ref.watch(authServiceProvider).pharmacyProfileStream(uid);
+  final loc = ref.watch(pharmacyLocationProvider);
+  if (loc == null) return Stream.value(null);
+  return ref
+      .watch(authServiceProvider)
+      .pharmacyProfileStream(loc.uid, loc.city, loc.area);
 });
 
-// ─── Data Streams (pharmacy-scoped) ──────────────────────────────────────────
+// ─── Stock Stream ────────────────────────────────────────────────────────────
+// cities/{city}/areas/{area}/pharmacies/{uid}/stock
 final medicinesStreamProvider = StreamProvider<List<Medicine>>((ref) {
-  final pharmacyId = ref.watch(currentPharmacyIdProvider);
-  if (pharmacyId == null || pharmacyId.isEmpty) return Stream.value([]);
-  return ref.watch(databaseServiceProvider).getMedicinesStream();
+  final db = ref.watch(databaseServiceProvider);
+  if (db == null) return Stream.value([]);
+  return db.getMedicinesStream();
 });
 
+// ─── Sales Stream ────────────────────────────────────────────────────────────
+// cities/{city}/areas/{area}/pharmacies/{uid}/sales
 final salesStreamProvider = StreamProvider<List<Sale>>((ref) {
-  final pharmacyId = ref.watch(currentPharmacyIdProvider);
-  if (pharmacyId == null || pharmacyId.isEmpty) return Stream.value([]);
-  return ref.watch(databaseServiceProvider).getSalesStream();
+  final db = ref.watch(databaseServiceProvider);
+  if (db == null) return Stream.value([]);
+  return db.getSalesStream();
 });

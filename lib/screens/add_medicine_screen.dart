@@ -125,7 +125,11 @@ class _AddMedicineScreenState extends ConsumerState<AddMedicineScreen> {
         costPrice: double.tryParse(_costCtrl.text) ?? 0,
         expiryDate: _expiryDate,
       );
-      await ref.read(databaseServiceProvider).addMedicine(medicine);
+      final db = ref.read(databaseServiceProvider);
+      if (db == null) {
+        throw Exception('Pharmacy database session not initialized.');
+      }
+      await db.addMedicine(medicine);
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));

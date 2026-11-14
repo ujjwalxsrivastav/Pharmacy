@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../models/medicine.dart';
+import '../models/sale.dart';
+import '../services/database_service.dart';
 
 class CounterBillingScreen extends ConsumerStatefulWidget {
   const CounterBillingScreen({super.key});
@@ -142,9 +144,46 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
                     ]),
                     const Spacer(),
                     ElevatedButton(
-                      onPressed: cartItems.isEmpty ? null : () {
-                        setState(() => _cart.clear());
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sale processed successfully!')));
+                      onPressed: cartItems.isEmpty ? null : () async {
+                        final db = ref.read(databaseServiceProvider);
+                        if (db == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Database session not available.')),
+                          );
+                          return;
+                        }
+
+                        try {
+                          for (final item in cartItems) {
+                            final med = item['med'] as Medicine;
+                            final qty = item['qty'] as int;
+                            final sale = Sale(
+                              id: '',
+                              medicineId: med.id,
+                              medicineName: med.name,
+                              customerName: 'Walk-in',
+                              quantity: qty,
+                              unitPrice: med.price,
+                              totalPrice: med.price * qty,
+                              date: DateTime.now(),
+                            );
+                            await db.addSale(sale);
+                            await db.decrementStock(med.id, qty);
+                          }
+
+                          if (mounted) {
+                            setState(() => _cart.clear());
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Sale processed and recorded successfully!')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to process sale: $e')),
+                            );
+                          }
+                        }
                       },
                       style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                       child: Text('Checkout', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
