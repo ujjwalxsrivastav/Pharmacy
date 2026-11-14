@@ -31,12 +31,14 @@ class PharmacyProfile {
     return PharmacyProfile(
       uid: uid,
       email: data['email'] ?? '',
-      pharmacyName: data['pharmacyName'] ?? '',
-      handlerName: data['handlerName'] ?? '',
-      city: data['city'] ?? '',
-      area: data['area'] ?? '',
+      pharmacyName: data['name'] ?? data['pharmacyName'] ?? '',
+      handlerName: data['ownerName'] ?? data['handlerName'] ?? '',
+      city: data['city'] ?? data['cityId'] ?? '',
+      area: data['area'] ?? data['areaId'] ?? '',
       createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
+          ? (data['createdAt'] is Timestamp
+              ? (data['createdAt'] as Timestamp).toDate()
+              : DateTime.now())
           : DateTime.now(),
     );
   }
@@ -44,9 +46,14 @@ class PharmacyProfile {
   Map<String, dynamic> toMap() => {
         'email': email,
         'pharmacyName': pharmacyName,
+        'name': pharmacyName,
         'handlerName': handlerName,
+        'ownerName': handlerName,
         'city': city,
+        'cityId': toKey(city),
         'area': area,
+        'areaId': toKey(area),
         'createdAt': Timestamp.fromDate(createdAt),
+        'updatedAt': Timestamp.now(),
       };
 }

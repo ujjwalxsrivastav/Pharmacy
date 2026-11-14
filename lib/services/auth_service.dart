@@ -47,20 +47,28 @@ class AuthService {
 
     final batch = _db.batch();
 
-    final pharmacyRef = _db
+    // 1. Nested path: cities/{city}/areas/{area}/pharmacies/{uid}
+    final nestedRef = _db
         .collection('cities')
         .doc(cityKey)
         .collection('areas')
         .doc(areaKey)
         .collection('pharmacies')
         .doc(uid);
-    batch.set(pharmacyRef, profile.toMap());
+    batch.set(nestedRef, profile.toMap());
 
+    // 2. Root pharmacies collection: pharmacies/{uid}
+    final rootRef = _db.collection('pharmacies').doc(uid);
+    batch.set(rootRef, profile.toMap(), SetOptions(merge: true));
+
+    // 3. Fast index: pharmacyIndex/{uid}
     final indexRef = _db.collection('pharmacyIndex').doc(uid);
     batch.set(indexRef, {
       'city': cityKey,
       'area': areaKey,
       'pharmacyName': pharmacyName.trim(),
+      'name': pharmacyName.trim(),
+      'ownerName': handlerName.trim(),
       'email': email.trim(),
     });
 
@@ -68,9 +76,61 @@ class AuthService {
     return credential;
   }
 
-  // ─── Auto-Resolve or Auto-Migrate Existing Pharmacy ────────────────────────
+  // ─── Match Existing or Nested Pharmacy ────────────────────────────────────
   Future<Map<String, String>> resolvePharmacyPath(String uid, String email) async {
-    // 1. Try reading pharmacyIndex
+    // Check 1: Root pharmacies where ownerUid == uid or doc.id == uid
+    try {
+      final rootSnap = await _db.collection('pharmacies').doc(uid).get();
+      if (rootSnap.exists && rootSnap.data() != null) {
+        final d = rootSnap.data()!;
+        final city = PharmacyProfile.toKey(d['cityId'] ?? d['city'] ?? 'default_city');
+        final area = PharmacyProfile.toKey(d['areaId'] ?? d['area'] ?? 'default_area');
+        final name = d['name'] ?? d['pharmacyName'] ?? 'Pharmacy';
+        final handler = d['ownerName'] ?? d['handlerName'] ?? 'Pharmacist';
+
+        await _syncProfile(uid, email, city, area, name, handler, d);
+        return {'city': city, 'area': area};
+      }
+    } catch (_) {}
+
+    // Check 2: Root pharmacies where email matches or ownerUid matches
+    try {
+      final queryByUid = await _db
+          .collection('pharmacies')
+          .where('ownerUid', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (queryByUid.docs.isNotEmpty) {
+        final d = queryByUid.docs.first.data();
+        final city = PharmacyProfile.toKey(d['cityId'] ?? d['city'] ?? 'default_city');
+        final area = PharmacyProfile.toKey(d['areaId'] ?? d['area'] ?? 'default_area');
+        final name = d['name'] ?? d['pharmacyName'] ?? 'Pharmacy';
+        final handler = d['ownerName'] ?? d['handlerName'] ?? 'Pharmacist';
+
+        await _syncProfile(uid, email, city, area, name, handler, d);
+        return {'city': city, 'area': area};
+      }
+
+      final queryByEmail = await _db
+          .collection('pharmacies')
+          .where('email', isEqualTo: email.trim())
+          .limit(1)
+          .get();
+
+      if (queryByEmail.docs.isNotEmpty) {
+        final d = queryByEmail.docs.first.data();
+        final city = PharmacyProfile.toKey(d['cityId'] ?? d['city'] ?? 'default_city');
+        final area = PharmacyProfile.toKey(d['areaId'] ?? d['area'] ?? 'default_area');
+        final name = d['name'] ?? d['pharmacyName'] ?? 'Pharmacy';
+        final handler = d['ownerName'] ?? d['handlerName'] ?? 'Pharmacist';
+
+        await _syncProfile(uid, email, city, area, name, handler, d);
+        return {'city': city, 'area': area};
+      }
+    } catch (_) {}
+
+    // Check 3: pharmacyIndex
     try {
       final snap = await _db.collection('pharmacyIndex').doc(uid).get();
       if (snap.exists && snap.data() != null) {
@@ -81,62 +141,42 @@ class AuthService {
       }
     } catch (_) {}
 
-    // 2. Try searching cities collection group
+    // Check 4: nested collectionGroup('pharmacies')
     try {
       final groupSnap = await _db.collectionGroup('pharmacies').get();
       for (final doc in groupSnap.docs) {
-        if (doc.id == uid) {
+        final d = doc.data();
+        if (doc.id == uid || d['ownerUid'] == uid || d['email'] == email.trim()) {
           final parts = doc.reference.path.split('/');
           if (parts.length >= 4 && parts[0] == 'cities' && parts[2] == 'areas') {
             final city = parts[1];
             final area = parts[3];
-            try {
-              await _db.collection('pharmacyIndex').doc(uid).set({
-                'city': city,
-                'area': area,
-                'pharmacyName': doc.data()['pharmacyName'] ?? 'Pharmacy',
-                'email': email,
-              }, SetOptions(merge: true));
-            } catch (_) {}
+            final name = d['name'] ?? d['pharmacyName'] ?? 'Pharmacy';
+            final handler = d['ownerName'] ?? d['handlerName'] ?? 'Pharmacist';
+
+            await _syncProfile(uid, email, city, area, name, handler, d);
             return {'city': city, 'area': area};
           }
         }
       }
     } catch (_) {}
 
-    // 3. Try root pharmacies/{uid} collection
-    try {
-      final rootSnap = await _db.collection('pharmacies').doc(uid).get();
-      if (rootSnap.exists && rootSnap.data() != null) {
-        final d = rootSnap.data()!;
-        final city = PharmacyProfile.toKey(d['city'] ?? 'default_city');
-        final area = PharmacyProfile.toKey(d['area'] ?? 'default_area');
-        final name = d['pharmacyName'] ?? 'Pharmacy';
-        final handler = d['handlerName'] ?? 'Pharmacist';
-
-        // Migrate to cities > areas > pharmacies > uid
-        await _migrateToHierarchy(uid, email, city, area, name, handler);
-        return {'city': city, 'area': area};
-      }
-    } catch (_) {}
-
-    // 4. Default auto-initialization for existing legacy account
-    // So the user doesn't get blocked and can immediately access everything!
+    // Default fallback
     final defaultCity = 'default_city';
     final defaultArea = 'default_area';
     final defaultName = email.split('@').first.toUpperCase();
-    await _migrateToHierarchy(uid, email, defaultCity, defaultArea, defaultName, 'Pharmacist');
-
+    await _syncProfile(uid, email, defaultCity, defaultArea, defaultName, 'Pharmacist', {});
     return {'city': defaultCity, 'area': defaultArea};
   }
 
-  Future<void> _migrateToHierarchy(
+  Future<void> _syncProfile(
     String uid,
     String email,
     String city,
     String area,
     String pharmacyName,
     String handlerName,
+    Map<String, dynamic> existingData,
   ) async {
     try {
       final profile = PharmacyProfile(
@@ -162,20 +202,13 @@ class AuthService {
         'city': city,
         'area': area,
         'pharmacyName': pharmacyName,
+        'name': pharmacyName,
+        'ownerName': handlerName,
         'email': email,
       }, SetOptions(merge: true));
 
-      // Copy legacy medicines from root /medicines to the new /stock if any exist
-      final legacyMeds = await _db.collection('medicines').get();
-      for (final doc in legacyMeds.docs) {
-        await pharmRef.collection('stock').doc(doc.id).set(doc.data(), SetOptions(merge: true));
-      }
-
-      // Copy legacy sales from root /sales to the new /sales if any exist
-      final legacySales = await _db.collection('sales').get();
-      for (final doc in legacySales.docs) {
-        await pharmRef.collection('sales').doc(doc.id).set(doc.data(), SetOptions(merge: true));
-      }
+      // Also ensure root pharmacies doc exists and is updated
+      await _db.collection('pharmacies').doc(uid).set(profile.toMap(), SetOptions(merge: true));
     } catch (_) {}
   }
 
@@ -202,22 +235,36 @@ class AuthService {
     required String pharmacyName,
     required String handlerName,
   }) async {
-    final pharmRef = _db
+    final cityKey = PharmacyProfile.toKey(city);
+    final areaKey = PharmacyProfile.toKey(area);
+
+    final nestedRef = _db
         .collection('cities')
-        .doc(city)
+        .doc(cityKey)
         .collection('areas')
-        .doc(area)
+        .doc(areaKey)
         .collection('pharmacies')
         .doc(uid);
 
-    await pharmRef.update({
+    final updateData = {
       'pharmacyName': pharmacyName.trim(),
+      'name': pharmacyName.trim(),
       'handlerName': handlerName.trim(),
-    });
+      'ownerName': handlerName.trim(),
+      'updatedAt': Timestamp.now(),
+    };
+
+    await nestedRef.update(updateData);
+
+    try {
+      await _db.collection('pharmacies').doc(uid).update(updateData);
+    } catch (_) {}
 
     try {
       await _db.collection('pharmacyIndex').doc(uid).update({
         'pharmacyName': pharmacyName.trim(),
+        'name': pharmacyName.trim(),
+        'ownerName': handlerName.trim(),
       });
     } catch (_) {}
   }
