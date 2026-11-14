@@ -8,6 +8,7 @@ import '../widgets/glass_stat_card.dart';
 import '../widgets/sales_chart.dart';
 import '../widgets/profile_bottom_sheet.dart';
 import '../models/sale.dart';
+import '../widgets/skeleton_loader.dart';
 import 'orders_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -370,7 +371,7 @@ class DashboardScreen extends ConsumerWidget {
                       children: [
                         GestureDetector(
                           onTap: () => ref.read(selectedTabProvider.notifier).set(2),
-                          child: GlassStatCard(title: "Today's Revenue", value: '₹${NumberFormat('#,##0').format(todayRevenue)}', subtitle: '${todaySales.length} orders today', icon: Icons.trending_up_rounded, gradient: AppColors.primaryGradient),
+                          child: GlassStatCard(title: "Today's Revenue", value: '₹${NumberFormat('#,##0.00').format(todayRevenue)}', subtitle: '${todaySales.length} orders today', icon: Icons.trending_up_rounded, gradient: AppColors.primaryGradient),
                         ),
                         GestureDetector(
                           onTap: () => ref.read(selectedTabProvider.notifier).set(1),
@@ -397,7 +398,7 @@ class DashboardScreen extends ConsumerWidget {
                       Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('No recent transactions', style: GoogleFonts.inter(color: colors.textSecondary)))),
                     ...sales.take(5).map((sale) => _activityTile(
                           sale.medicineName,
-                          'Qty: ${sale.quantity}  •  ₹${sale.totalPrice}',
+                          'Qty: ${sale.quantity}  •  ₹${NumberFormat('#,##0.00').format(sale.totalPrice)}',
                           Icons.receipt_long_rounded,
                           AppColors.success,
                           _formatRelativeTime(sale.date),
@@ -406,11 +407,11 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const DashboardSkeleton(),
               error: (err, stack) => Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('Error loading sales. Please ensure your Firestore database is created in the Firebase Console.', textAlign: TextAlign.center, style: GoogleFonts.inter(color: colors.textSecondary)))),
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const DashboardSkeleton(),
           error: (err, stack) => Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('Error loading inventory. Please ensure your Firestore database is created in the Firebase Console.', textAlign: TextAlign.center, style: GoogleFonts.inter(color: colors.textSecondary)))),
         ),
       ),

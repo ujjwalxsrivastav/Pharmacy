@@ -26,6 +26,7 @@ class HomeShell extends ConsumerWidget {
     final selectedTab = ref.watch(selectedTabProvider);
     final colors = AppColors.of(context);
     final profileAsync = ref.watch(pharmacyProfileProvider);
+    final cartCount = ref.watch(cartTotalUnitsProvider);
 
     return Scaffold(
       body: AnimatedSwitcher(
@@ -129,24 +130,36 @@ class HomeShell extends ConsumerWidget {
           currentIndex: selectedTab,
           onTap: (index) =>
               ref.read(selectedTabProvider.notifier).set(index),
-          items: const [
-            BottomNavigationBarItem(
+          items: [
+            const BottomNavigationBarItem(
                 icon: Icon(Icons.dashboard_rounded),
                 activeIcon: Icon(Icons.dashboard_rounded),
                 label: 'Dashboard'),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
                 icon: Icon(Icons.inventory_2_outlined),
                 activeIcon: Icon(Icons.inventory_2_rounded),
                 label: 'Inventory'),
             BottomNavigationBarItem(
-                icon: Icon(Icons.point_of_sale_outlined),
-                activeIcon: Icon(Icons.point_of_sale_rounded),
+                icon: cartCount > 0
+                    ? Badge(
+                        label: Text('$cartCount'),
+                        backgroundColor: AppColors.primary,
+                        child: const Icon(Icons.point_of_sale_outlined),
+                      )
+                    : const Icon(Icons.point_of_sale_outlined),
+                activeIcon: cartCount > 0
+                    ? Badge(
+                        label: Text('$cartCount'),
+                        backgroundColor: AppColors.primary,
+                        child: const Icon(Icons.point_of_sale_rounded),
+                      )
+                    : const Icon(Icons.point_of_sale_rounded),
                 label: 'Billing'),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
                 icon: Icon(Icons.analytics_outlined),
                 activeIcon: Icon(Icons.analytics_rounded),
                 label: 'Analytics'),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
                 icon: Icon(Icons.notifications_outlined),
                 activeIcon: Icon(Icons.notifications_rounded),
                 label: 'Alerts'),

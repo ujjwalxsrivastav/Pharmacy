@@ -21,7 +21,7 @@
 | **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | 🟢 Complete | `a9a0410` | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
 | **P9** | **Inventory Depth (FEFO, Batches, PO)** | 🟢 Complete | `f808e43` | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
 | **P10** | **Unified Analytics & Financial Reports** | 🟢 Complete | `ebbdaaf` | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
-| **P11** | **UX Polish & Keyboard-First POS** | ⚪ Pending | — | Riverpod persistent cart, keyboard shortcuts (Enter/Ctrl+Enter/Esc), barcode scan. |
+| **P11** | **UX Polish & Keyboard-First POS** | 🟢 Complete | `69f134a` | Riverpod persistent cart, keyboard shortcuts (Enter/Ctrl+Enter/Esc), barcode scan. |
 | **P12** | **Klinixy Branding Alignment** | ⚪ Pending | — | Systematic branding across app title, headers, invoices, web metadata. |
 | **P13** | **Automated Tests & Quality Suite** | ⚪ Pending | — | Automated widget tests for POS maths, stock guards, and order states. |
 | **P14** | **Final End-to-End QA & Handover** | ⚪ Pending | — | 20-case checklist verification, demo seeding verification, handover documentation. |
@@ -174,4 +174,26 @@
   - Implemented multi-section CSV exports with standardized naming `Pharma_<Section>_yyyyMMdd_HHmm.csv` for Sales, Top Products, Slow Moving, Category Breakdown, and Full Aggregated Financial Report.
   - Retained Sales Ledger search, Pakka/Kaccha filter, and customer return/refund modal.
   - Created unit test suite `test/analytics_reports_test.dart` testing range filtering, KPIs, 24-hour peak hours, top selling, slow moving, and category revenue (16/16 tests green).
+  - Verified `flutter analyze` passing with 0 issues.
+
+### [P11] UX Polish & Keyboard-First POS
+- **Goal:** Elevate pharmacist usability to enterprise standards while strictly preserving the locked design system (#00BFA6 teal, #7C4DFF violet, Inter, radius 16): persistent Riverpod cart across bottom tabs, full keyboard-first billing shortcuts, camera barcode scanner, 48px+ touch targets, optimistic updates, skeleton loaders, and explicit expiry indicators.
+- **Actions:**
+  - Migrated POS cart from ephemeral state to Riverpod `CartNotifier` (`cartProvider`): cart survives tab switches and page navigations without losing staged items.
+  - Added live item-count badge to the Billing tab icon in `HomeShell` bottom navigation.
+  - Implemented keyboard-first billing in `CounterBillingScreen`:
+    - Autofocuses search input on open.
+    - `Enter`: automatically adds top matching non-expired in-stock medicine to cart.
+    - `Ctrl + Enter` (and `Cmd + Enter`): generates bill immediately without touching the mouse.
+    - `Escape`: clears search input and closes search dropdown.
+  - Added `mobile_scanner` integration with `BarcodeScannerDialog`:
+    - Real-time camera barcode scan with reticle overlay.
+    - Manual barcode / name fallback for web and desktop environments.
+    - Automatic medicine lookup by barcode/batch/id and cart addition.
+  - Enhanced touch targets: steppers and primary buttons updated to ≥ 48px.
+  - Added destructive action confirmation: "Clear Cart" dialog explicitly states consequence ("Clearing the cart will remove all X items...").
+  - Created `DashboardSkeleton` and `InventorySkeleton` in `lib/widgets/skeleton_loader.dart`, replacing bare spinners on initial load.
+  - Enforced prominent red left border on expired medicine cards across Inventory, Billing search results, and Alerts.
+  - Standardized currency formatting on `NumberFormat('#,##0.00')` throughout billing and headers.
+  - Added unit test suite `test/cart_ux_test.dart` verifying cart state persistence, stock limits, decrementing, and counts (20/20 total tests green).
   - Verified `flutter analyze` passing with 0 issues.

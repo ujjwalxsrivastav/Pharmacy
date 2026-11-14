@@ -301,7 +301,9 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
       decoration: BoxDecoration(
         color: colors.surfaceCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+        border: badgeColor == AppColors.error
+            ? const Border(left: BorderSide(color: AppColors.error, width: 4))
+            : Border.all(color: badgeColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,

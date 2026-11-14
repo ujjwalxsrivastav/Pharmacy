@@ -103,3 +103,59 @@ final purchaseOrdersStreamProvider = StreamProvider<List<PurchaseOrder>>((ref) {
   if (db == null) return Stream.value([]);
   return db.getPurchaseOrdersStream();
 });
+
+// ─── POS Cart Notifier (P11 UX Pass: Persistent across tabs) ──────────────────
+class CartNotifier extends Notifier<Map<String, int>> {
+  @override
+  Map<String, int> build() => {};
+
+  bool addItem(String medicineId, int maxStock, {int qty = 1}) {
+    final current = state[medicineId] ?? 0;
+    if (current + qty <= maxStock) {
+      state = {...state, medicineId: current + qty};
+      return true;
+    }
+    return false;
+  }
+
+  void decrementItem(String medicineId) {
+    final current = state[medicineId];
+    if (current == null) return;
+    if (current > 1) {
+      state = {...state, medicineId: current - 1};
+    } else {
+      removeItem(medicineId);
+    }
+  }
+
+  void setQuantity(String medicineId, int qty, int maxStock) {
+    if (qty <= 0) {
+      removeItem(medicineId);
+    } else {
+      final safeQty = qty > maxStock ? maxStock : qty;
+      state = {...state, medicineId: safeQty};
+    }
+  }
+
+  void removeItem(String medicineId) {
+    final updated = Map<String, int>.from(state)..remove(medicineId);
+    state = updated;
+  }
+
+  void clearCart() {
+    state = {};
+  }
+}
+
+final cartProvider =
+    NotifierProvider<CartNotifier, Map<String, int>>(CartNotifier.new);
+
+final cartTotalUnitsProvider = Provider<int>((ref) {
+  final cart = ref.watch(cartProvider);
+  return cart.values.fold<int>(0, (sum, q) => sum + q);
+});
+
+final cartUniqueCountProvider = Provider<int>((ref) {
+  final cart = ref.watch(cartProvider);
+  return cart.length;
+});

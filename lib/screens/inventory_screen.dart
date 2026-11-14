@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../services/database_service.dart';
 import '../models/medicine.dart';
+import '../widgets/skeleton_loader.dart';
 import 'purchase_orders_screen.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
@@ -198,7 +199,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const InventorySkeleton(),
           error: (err, stack) => Center(child: Text('Error: $err')),
         ),
       ),
@@ -225,14 +226,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       decoration: BoxDecoration(
         color: colors.surfaceCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isExp
-              ? AppColors.error.withValues(alpha: 0.4)
-              : isLow
-                  ? AppColors.warning.withValues(alpha: 0.4)
-                  : Colors.transparent,
-          width: 1,
-        ),
+        border: isExp
+            ? const Border(left: BorderSide(color: AppColors.error, width: 4))
+            : Border.all(
+                color: isLow
+                    ? AppColors.warning.withValues(alpha: 0.4)
+                    : Colors.transparent,
+                width: 1,
+              ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
