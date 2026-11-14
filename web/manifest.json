@@ -1,11 +1,11 @@
 {
-    "name": "pharmacist_dashboard",
-    "short_name": "pharmacist_dashboard",
+    "name": "Klinixy Pharmacy",
+    "short_name": "Klinixy",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F5F7FA",
+    "theme_color": "#00BFA6",
+    "description": "Klinixy Pharmacy — Enterprise POS & Quick-Commerce Dashboard",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

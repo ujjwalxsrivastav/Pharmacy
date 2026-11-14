@@ -18,5 +18,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('Klinixy Pharmacy'), findsOneWidget);
   });
 }

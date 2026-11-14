@@ -22,7 +22,7 @@
 | **P9** | **Inventory Depth (FEFO, Batches, PO)** | 🟢 Complete | `f808e43` | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
 | **P10** | **Unified Analytics & Financial Reports** | 🟢 Complete | `ebbdaaf` | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
 | **P11** | **UX Polish & Keyboard-First POS** | 🟢 Complete | `69f134a` | Riverpod persistent cart, keyboard shortcuts (Enter/Ctrl+Enter/Esc), barcode scan. |
-| **P12** | **Klinixy Branding Alignment** | ⚪ Pending | — | Systematic branding across app title, headers, invoices, web metadata. |
+| **P12** | **Klinixy Branding Alignment** | 🟢 Complete | `48bff84` | Systematic branding across app title, headers, invoices, web metadata. |
 | **P13** | **Automated Tests & Quality Suite** | ⚪ Pending | — | Automated widget tests for POS maths, stock guards, and order states. |
 | **P14** | **Final End-to-End QA & Handover** | ⚪ Pending | — | 20-case checklist verification, demo seeding verification, handover documentation. |
 
@@ -197,3 +197,13 @@
   - Standardized currency formatting on `NumberFormat('#,##0.00')` throughout billing and headers.
   - Added unit test suite `test/cart_ux_test.dart` verifying cart state persistence, stock limits, decrementing, and counts (20/20 total tests green).
   - Verified `flutter analyze` passing with 0 issues.
+
+### [P12] Klinixy Branding Alignment
+- **Goal:** Execute agreed decision D-P2 by systematically branding the entire application to "Klinixy Pharmacy" across all titles, headers, authentication screens, invoice generators, and web metadata while keeping the locked teal/violet palette and functionality intact.
+- **Actions:**
+  - Updated application title in `lib/main.dart` from `PharmaDash` to `Klinixy Pharmacy`.
+  - Rebranded authentication headline in `lib/screens/login_screen.dart` to `Klinixy Pharmacy`.
+  - Updated web application title and metadata in `web/index.html` to `Klinixy Pharmacy — Enterprise POS & Quick-Commerce Dashboard`.
+  - Configured progressive web app identity and theme colors in `web/manifest.json` (`name: "Klinixy Pharmacy"`, `short_name: "Klinixy"`, `#00BFA6` theme color).
+  - Updated widget smoke test in `test/widget_test.dart` to explicitly verify that `Klinixy Pharmacy` is rendered on boot.
+  - Verified `flutter analyze` passing with 0 issues and all 20 tests passing.

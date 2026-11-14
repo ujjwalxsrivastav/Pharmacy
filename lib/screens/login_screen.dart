@@ -95,7 +95,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           color: Colors.white, size: 34),
                     ),
                     const SizedBox(height: 20),
-                    Text('PharmaDash',
+                    Text('Klinixy Pharmacy',
                         style: GoogleFonts.inter(
                             fontSize: 30,
                             fontWeight: FontWeight.w800,

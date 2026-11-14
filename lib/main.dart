@@ -23,7 +23,7 @@ class PharmaDashApp extends ConsumerWidget {
     final authAsync = ref.watch(authUserProvider);
 
     return MaterialApp(
-      title: 'PharmaDash',
+      title: 'Klinixy Pharmacy',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
