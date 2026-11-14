@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../widgets/glass_stat_card.dart';
 import '../widgets/sales_chart.dart';
+import '../widgets/profile_bottom_sheet.dart';
 import '../models/sale.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -79,14 +80,15 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Builder(
-                          builder: (ctx) => GestureDetector(
-                            onTap: () => Scaffold.of(ctx).openDrawer(),
-                            child: Container(
-                              width: 44, height: 44,
-                              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), gradient: const LinearGradient(colors: AppColors.accentGradient)),
-                              child: const Icon(Icons.person, color: Colors.white, size: 22),
-                            ),
+                        GestureDetector(
+                          onTap: () {
+                            final profile = profileAsync.valueOrNull;
+                            showProfileBottomSheet(context, ref, profile);
+                          },
+                          child: Container(
+                            width: 44, height: 44,
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), gradient: const LinearGradient(colors: AppColors.accentGradient)),
+                            child: const Icon(Icons.person, color: Colors.white, size: 22),
                           ),
                         ),
                       ],

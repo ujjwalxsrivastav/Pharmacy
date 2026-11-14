@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../services/auth_service.dart';
+import '../widgets/profile_bottom_sheet.dart';
 import 'dashboard_screen.dart';
 import 'inventory_screen.dart';
 import 'sales_screen.dart';
@@ -90,6 +91,19 @@ class HomeShell extends ConsumerWidget {
                 error: (_, __) => const SizedBox.shrink(),
               ),
               const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined,
+                    color: AppColors.primary),
+                title: const Text('Edit Profile',
+                    style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(context);
+                  final profile = profileAsync.valueOrNull;
+                  showProfileBottomSheet(context, ref, profile);
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.logout_rounded,
                     color: AppColors.error),

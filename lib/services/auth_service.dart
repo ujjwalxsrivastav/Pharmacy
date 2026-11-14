@@ -194,6 +194,34 @@ class AuthService {
             snap.exists ? PharmacyProfile.fromMap(snap.data()!, uid) : null);
   }
 
+  // ─── Update Profile ──────────────────────────────────────────────────────
+  Future<void> updatePharmacyProfile({
+    required String uid,
+    required String city,
+    required String area,
+    required String pharmacyName,
+    required String handlerName,
+  }) async {
+    final pharmRef = _db
+        .collection('cities')
+        .doc(city)
+        .collection('areas')
+        .doc(area)
+        .collection('pharmacies')
+        .doc(uid);
+
+    await pharmRef.update({
+      'pharmacyName': pharmacyName.trim(),
+      'handlerName': handlerName.trim(),
+    });
+
+    try {
+      await _db.collection('pharmacyIndex').doc(uid).update({
+        'pharmacyName': pharmacyName.trim(),
+      });
+    } catch (_) {}
+  }
+
   Future<void> signOut() async => await _auth.signOut();
 }
 
