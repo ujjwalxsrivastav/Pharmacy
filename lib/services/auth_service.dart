@@ -244,14 +244,36 @@ class AuthService {
     required String docPath,
     required String pharmacyName,
     required String handlerName,
+    GeoPoint? location,
+    String? address,
+    String? phone,
+    bool? isOpen,
+    double? deliveryRadiusKm,
+    String? gstin,
+    String? updatedByUid,
   }) async {
-    final updateData = {
+    final updateData = <String, dynamic>{
       'name': pharmacyName.trim(),
       'pharmacyName': pharmacyName.trim(),
       'ownerName': handlerName.trim(),
       'handlerName': handlerName.trim(),
       'updatedAt': Timestamp.now(),
     };
+
+    if (location != null) {
+      updateData['location'] = location;
+      updateData['lat'] = location.latitude;
+      updateData['lng'] = location.longitude;
+      updateData['locationUpdatedAt'] = Timestamp.now();
+      if (updatedByUid != null) {
+        updateData['locationUpdatedBy'] = updatedByUid;
+      }
+    }
+    if (address != null) updateData['address'] = address.trim();
+    if (phone != null) updateData['phone'] = phone.trim();
+    if (isOpen != null) updateData['isOpen'] = isOpen;
+    if (deliveryRadiusKm != null) updateData['deliveryRadiusKm'] = deliveryRadiusKm;
+    if (gstin != null) updateData['gstin'] = gstin.trim();
 
     await _db.doc(docPath).update(updateData);
 
@@ -270,8 +292,15 @@ class AuthService {
               .doc(aKey)
               .collection('pharmacies')
               .doc(docSnap.id)
-              .update(updateData);
+              .set(updateData, SetOptions(merge: true));
         }
+        await _db.collection('pharmacyIndex').doc(docSnap.id).set({
+          'name': pharmacyName.trim(),
+          'ownerName': handlerName.trim(),
+          if (location != null) 'location': location,
+          if (isOpen != null) 'isOpen': isOpen,
+          'updatedAt': Timestamp.now(),
+        }, SetOptions(merge: true));
       }
     } catch (_) {}
   }

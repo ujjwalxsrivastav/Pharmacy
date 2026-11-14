@@ -77,6 +77,46 @@ class DashboardScreen extends ConsumerWidget {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
+                                        const SizedBox(width: 8),
+                                        GestureDetector(
+                                          onTap: () => showEditProfileDialog(context, ref, profile),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: (profile?.hasLocation ?? false)
+                                                  ? AppColors.success.withValues(alpha: 0.15)
+                                                  : AppColors.warning.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  (profile?.hasLocation ?? false)
+                                                      ? Icons.check_circle_rounded
+                                                      : Icons.location_off_rounded,
+                                                  size: 10,
+                                                  color: (profile?.hasLocation ?? false)
+                                                      ? AppColors.success
+                                                      : AppColors.warning,
+                                                ),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  (profile?.hasLocation ?? false)
+                                                      ? 'Location Set ✓'
+                                                      : 'Location Not Set',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: (profile?.hasLocation ?? false)
+                                                      ? AppColors.success
+                                                      : AppColors.warning,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -111,6 +151,54 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(dateStr, style: GoogleFonts.inter(fontSize: 12, color: colors.textHint)),
+                    if (profileAsync.valueOrNull != null && !profileAsync.valueOrNull!.hasLocation) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add_location_alt_outlined, color: AppColors.warning, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Set your pharmacy location',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                      color: colors.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Nearby customers need your GPS coordinates to find you.',
+                                    style: GoogleFonts.inter(fontSize: 10, color: colors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => showEditProfileDialog(context, ref, profileAsync.valueOrNull),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                backgroundColor: AppColors.warning.withValues(alpha: 0.2),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: Text(
+                                'Set Now',
+                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.warning),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
 
                     // Quick Action Banner

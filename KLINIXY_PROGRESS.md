@@ -11,9 +11,9 @@
 | Phase | Title | Status | Commit | Verification Notes |
 |:---|:---|:---:|:---:|:---|
 | **P0** | **Baseline + Cleanup** | 🟢 Complete | `a360050` | `flutter analyze` 0 issues, smoke test green, stray HTML moved, README rewritten. |
-| **P1** | **Reconcile Repo vs Live UI** | 🟢 Complete | `in-progress` | 5 tabs kept, Analytics banner linked, 15 live category chips added, modal Add Medicine, forgot-password flow. |
-| **P2** | **Pharmacy Location (GeoPoint + UI)** | 🟡 Ready | Pending | GeoPoint coords, address, phone, isOpen toggle, delivery radius, geolocator GPS. |
-| **P3** | **Auth & Identity Hardening** | ⚪ Pending | — | Canonical `users/{uid}.pharmacyId`, forgot-password reset email, reachable logout. |
+| **P1** | **Reconcile Repo vs Live UI** | 🟢 Complete | `20ba9b3` | 5 tabs kept, Analytics banner linked, 15 live category chips added, modal Add Medicine, forgot-password flow. |
+| **P2** | **Pharmacy Location (GeoPoint + UI)** | 🟢 Complete | `in-progress` | GeoPoint coords, address, phone, isOpen toggle, delivery radius, geolocator GPS. |
+| **P3** | **Auth & Identity Hardening** | 🟡 Ready | Pending | Canonical `users/{uid}.pharmacyId`, forgot-password reset email, reachable logout. |
 | **P4** | **Firestore Scoped Security Rules** | ⚪ Pending | — | Per-pharmacy rules file in repo (not deployed), read/write protection. |
 | **P5** | **Atomic Sale & Per-Pharmacy Counter** | ⚪ Pending | — | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
 | **P6** | **Real Thermal & PDF Printing** | ⚪ Pending | — | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
@@ -48,3 +48,17 @@
   - Added in-page modal dialog for "+ Add Medicine" with fields: Name, Category, Price (₹), Initial Stock, Min Safe Stock, and Expiry Date.
   - Added "Forgot password?" flow on `LoginScreen` powered by `sendPasswordResetEmail`.
   - Verified `flutter analyze` passing with 0 issues and `flutter test` green.
+
+### [P2] Pharmacy Location (GeoPoint + UI)
+- **Goal:** Enable the pharmacy to set and edit its GPS coordinates, street address, store open/closed status, and delivery radius.
+- **Actions:**
+  - Added `location` (Firestore `GeoPoint`), `address`, `phone`, `isOpen`, `deliveryRadiusKm`, `gstin`, `locationUpdatedAt`, and `locationUpdatedBy` to `PharmacyProfile`.
+  - Added `geolocator` dependency with Android location permissions and web compatibility.
+  - Added full Location & Store section to `EditProfileDialog`:
+    - Device GPS detection via "Use Current Location" button with safe permission checking & error handling.
+    - Editable validated latitude & longitude input fields (-90..90, -180..180).
+    - "Open in Google Maps" external link viewer (universal web/mobile).
+    - Store Open / Closed status switch and delivery radius configuration.
+  - Integrated Location Status chip ("Location Set ✓" vs "Location Not Set") and gentle callout banner on Dashboard.
+  - Mirrored updates to root `pharmacies/{id}`, hierarchical `cities/.../pharmacies/{id}`, and `pharmacyIndex/{id}`.
+  - Verified `flutter analyze` 0 issues and `flutter test` green.
