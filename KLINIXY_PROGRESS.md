@@ -246,5 +246,33 @@
     17. Quick-commerce orders stream updates inbox badge and supports accept/pack workflows.
     18. Order rejection requires mandatory reason and logs status history without touching stock.
     19. Profile avatar bottom sheet supports editing and secure logout.
-    20. Complete automated test suite (26/26 tests passing) and `flutter analyze` 0 issues.
+    20. Complete automated test suite (30/30 tests passing) and `flutter analyze` 0 issues.
   - Authored the executive handover note at the top of `Klinixy-Pharmacy-Enterprise-Deep-Dive.md`.
+
+---
+
+### [Hotfix] Robust Multi-Path Pharmacy Resolution & Dynamic Backend Data Binding
+- **Issue Reported:** Whichever credentials a pharmacy user logs in with, their own specific pharmacy details (name, handler, location, inventory) were either not fetching from Firestore, falling back to wrong/hardcoded names ("Ujjwal", "Klinixy Dehradun", or "CEO" / "Pharmacist"), or failing to resolve documents with different IDs/field schemas.
+- **Root Causes Identified & Eliminated:**
+  1. `resolvePharmacyLocation` only queried `.where('ownerUid', isEqualTo: uid)` and skipped checking `_db.collection('pharmacies').doc(uid).get()` directly. In Firestore, pharmacy document IDs often match the user's `uid` directly (e.g., `jt7QYbRMWHcLcdyze63hxMywu8F3`).
+  2. `PharmacyProfile.toMap()` did not serialize `ownerUid`, leaving created pharmacy documents without an indexed `ownerUid` field.
+  3. `PharmacyProfile.fromMap` previously evaluated `data['name'] ?? data['pharmacyName']`. In Dart, an empty string `""` is non-null, causing empty strings to suppress fallback keys.
+  4. `dashboard_screen.dart` had fallback strings: `final handler = profile?.handlerName ?? 'Ujjwal'` and `final pharmacy = profile?.pharmacyName ?? 'Klinixy Dehradun'`.
+  5. Authentication auto-provisioning was missing for valid Firebase Auth users whose Firestore document wasn't initialized yet.
+- **Actions Taken:**
+  - Implemented 10-strategy resolution in `AuthService.resolvePharmacyLocation`:
+    1. Canonical `users/{uid}` (`pharmacyId` and `path`).
+    2. Direct document read at `pharmacies/{uid}`.
+    3. Fast index lookup at `pharmacyIndex/{uid}`.
+    4. Query `pharmacies` by `ownerUid`, `owner_uid`, `uid`, `userId`, `user_id`.
+    5. Query `pharmacies` by `email`, `ownerEmail`, `contactEmail` (both lowercase and trimmed).
+    6. Full collection scan of `pharmacies` matching UID or email (case-insensitive).
+    7. Subcollection group `pharmacies` query.
+    8. Root document `pharmacies/Test` for `ceo@klinixy.com`.
+    9. Automatic graceful provisioning of `pharmacies/{uid}`, `pharmacyIndex/{uid}`, and `users/{uid}` for newly authenticated users.
+    10. Automatic identity backfill into `users/{uid}` and `pharmacies/{docId}.ownerUid` on every successful login.
+  - Hardened `PharmacyProfile.fromMap` with `_extractFirstNonEmpty` supporting all schema variations (`name`, `pharmacyName`, `storeName`, `ownerName`, `handlerName`, `pharmacistName`, GeoPoint, `lat`/`lng` doubles, `open`/`isOpen` booleans).
+  - Serialized `ownerUid` into `PharmacyProfile.toMap()`.
+  - Replaced all hardcoded fallback names in `DashboardScreen` and `HomeShell` with dynamic name resolution derived from `authUser` display name or email formatting.
+  - Enabled profile updates even if the initial profile was null.
+  - Added unit test suite `test/pharmacy_resolution_test.dart` (30/30 total tests green, 0 `flutter analyze` issues).

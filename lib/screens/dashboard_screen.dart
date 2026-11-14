@@ -27,6 +27,7 @@ class DashboardScreen extends ConsumerWidget {
             : 'Good Evening';
     final dateStr = DateFormat('EEEE, d MMMM').format(now);
 
+    final authUser = ref.watch(authUserProvider).valueOrNull;
     final medicinesAsync = ref.watch(medicinesStreamProvider);
     final salesAsync = ref.watch(salesStreamProvider);
     final profileAsync = ref.watch(pharmacyProfileProvider);
@@ -55,12 +56,19 @@ class DashboardScreen extends ConsumerWidget {
                 final weeklyData = _calculateWeeklySales(sales);
                 final profile = profileAsync.valueOrNull;
 
-                final handler = (profile?.handlerName ?? '').isNotEmpty
+                final handler = (profile?.handlerName ?? '').trim().isNotEmpty
                     ? profile!.handlerName
-                    : 'Ujjwal';
-                final pharmacy = (profile?.pharmacyName ?? '').isNotEmpty
+                    : ((authUser?.displayName ?? '').trim().isNotEmpty
+                        ? authUser!.displayName!
+                        : ((authUser?.email ?? '').trim().isNotEmpty
+                            ? _formatDisplayNameFromEmail(authUser!.email!)
+                            : 'Pharmacist'));
+
+                final pharmacy = (profile?.pharmacyName ?? '').trim().isNotEmpty
                     ? profile!.pharmacyName
-                    : 'Klinixy Dehradun';
+                    : ((authUser?.email ?? '').trim().isNotEmpty
+                        ? '${_formatDisplayNameFromEmail(authUser!.email!)} Pharmacy'
+                        : 'Klinixy Pharmacy');
 
                 return Center(
                   child: ConstrainedBox(
@@ -1381,6 +1389,18 @@ class DashboardScreen extends ConsumerWidget {
       }
     }
     return dailyTotals;
+  }
+
+  String _formatDisplayNameFromEmail(String email) {
+    final clean = email.trim();
+    if (clean.isEmpty) return 'Pharmacist';
+    final prefix = clean.split('@').first;
+    if (prefix.isEmpty) return 'Pharmacist';
+    return prefix
+        .split(RegExp(r'[\._\-]'))
+        .where((s) => s.isNotEmpty)
+        .map((s) => '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}')
+        .join(' ');
   }
 
   String _formatRelativeTime(DateTime dt) {

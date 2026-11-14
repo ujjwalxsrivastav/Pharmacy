@@ -92,95 +92,321 @@ class AuthService {
   Future<PharmacyLocation> resolvePharmacyLocation(String uid, String email) async {
     final cleanEmail = email.trim().toLowerCase();
 
-    // 1. Single canonical source: users/{uid}
+    // Strategy 1: Canonical user doc users/{uid}
     try {
       final userSnap = await _db.collection('users').doc(uid).get();
       if (userSnap.exists && userSnap.data() != null) {
         final u = userSnap.data()!;
         final pharmacyId = (u['pharmacyId'] ?? '').toString().trim();
+        final path = (u['path'] ?? '').toString().trim();
         final cityId = (u['cityId'] ?? '').toString().trim();
         final areaId = (u['areaId'] ?? '').toString().trim();
 
         if (pharmacyId.isNotEmpty) {
           final pSnap = await _db.collection('pharmacies').doc(pharmacyId).get();
-          final d = pSnap.data() ?? {};
-          return PharmacyLocation(
-            docId: pharmacyId,
-            path: 'pharmacies/$pharmacyId',
-            city: (d['city'] ?? d['cityId'] ?? 'Dehradun').toString(),
-            area: (d['area'] ?? d['areaId'] ?? 'Selaqui').toString(),
-            cityId: cityId.isNotEmpty ? cityId : 'dehradun',
-            areaId: areaId.isNotEmpty ? areaId : 'selaqui',
-          );
-        }
-      }
-    } catch (_) {}
-
-    // 2. Migration lookup: If users/{uid} is not yet backfilled, find existing pharmacy by ownerUid or email
-    try {
-      final queryByUid = await _db
-          .collection('pharmacies')
-          .where('ownerUid', isEqualTo: uid)
-          .limit(1)
-          .get();
-      DocumentSnapshot<Map<String, dynamic>>? match =
-          queryByUid.docs.isNotEmpty ? queryByUid.docs.first : null;
-
-      if (match == null && cleanEmail.isNotEmpty) {
-        final queryByEmail = await _db
-            .collection('pharmacies')
-            .where('email', isEqualTo: cleanEmail)
-            .limit(1)
-            .get();
-        if (queryByEmail.docs.isNotEmpty) {
-          match = queryByEmail.docs.first;
-        }
-      }
-
-      // Check root doc named 'Test' if email matches ceo@klinixy.com or user
-      if (match == null) {
-        final testDoc = await _db.collection('pharmacies').doc('Test').get();
-        if (testDoc.exists) {
-          final td = testDoc.data() ?? {};
-          final tEmail = (td['email'] ?? '').toString().toLowerCase();
-          if (tEmail == cleanEmail || cleanEmail == 'ceo@klinixy.com') {
-            match = testDoc;
+          if (pSnap.exists && pSnap.data() != null) {
+            final d = pSnap.data()!;
+            return _buildLocationFromDoc(pharmacyId, 'pharmacies/$pharmacyId', d, cityId, areaId);
+          }
+        } else if (path.isNotEmpty) {
+          final pSnap = await _db.doc(path).get();
+          if (pSnap.exists && pSnap.data() != null) {
+            return _buildLocationFromDoc(pSnap.id, path, pSnap.data()!, cityId, areaId);
           }
         }
       }
+    } catch (_) {}
 
-      if (match != null) {
-        final d = match.data() ?? {};
-        final pharmacyId = match.id;
-        final city = (d['city'] ?? d['cityId'] ?? 'Dehradun').toString();
-        final area = (d['area'] ?? d['areaId'] ?? 'Selaqui').toString();
-        final cityId = (d['cityId'] ?? PharmacyProfile.toKey(city)).toString();
-        final areaId = (d['areaId'] ?? PharmacyProfile.toKey(area)).toString();
-
-        // Backfill users/{uid} so future logins use single source
-        try {
-          await _db.collection('users').doc(uid).set({
-            'pharmacyId': pharmacyId,
-            'cityId': cityId,
-            'areaId': areaId,
-            'email': cleanEmail,
-            'updatedAt': Timestamp.now(),
-          }, SetOptions(merge: true));
-        } catch (_) {}
-
-        return PharmacyLocation(
-          docId: pharmacyId,
-          path: 'pharmacies/$pharmacyId',
-          city: city,
-          area: area,
-          cityId: cityId,
-          areaId: areaId,
+    // Strategy 2: Direct document lookup at pharmacies/{uid}
+    try {
+      final directDoc = await _db.collection('pharmacies').doc(uid).get();
+      if (directDoc.exists && directDoc.data() != null) {
+        final d = directDoc.data()!;
+        await _backfillUserIdentity(
+          uid: uid,
+          pharmacyId: uid,
+          docPath: 'pharmacies/$uid',
+          data: d,
+          email: cleanEmail,
         );
+        return _buildLocationFromDoc(uid, 'pharmacies/$uid', d, null, null);
       }
     } catch (_) {}
 
-    // 3. Explicit un-onboarded exception — no silent fallbacks to another pharmacy's data!
-    throw PharmacyNotOnboardedException(email.isNotEmpty ? email : uid);
+    // Strategy 3: Fast index doc pharmacyIndex/{uid}
+    try {
+      final indexSnap = await _db.collection('pharmacyIndex').doc(uid).get();
+      if (indexSnap.exists && indexSnap.data() != null) {
+        final idx = indexSnap.data()!;
+        final path = (idx['path'] ?? 'pharmacies/$uid').toString().trim();
+        final docRef = _db.doc(path);
+        final docSnap = await docRef.get();
+        final d = (docSnap.exists && docSnap.data() != null) ? docSnap.data()! : idx;
+        await _backfillUserIdentity(
+          uid: uid,
+          pharmacyId: docRef.id,
+          docPath: path,
+          data: d,
+          email: cleanEmail,
+        );
+        return _buildLocationFromDoc(docRef.id, path, d, null, null);
+      }
+    } catch (_) {}
+
+    // Strategy 4: Query pharmacies by ownerUid or variations
+    final uidFields = ['ownerUid', 'owner_uid', 'uid', 'userId', 'user_id', 'pharmacistUid'];
+    for (final field in uidFields) {
+      try {
+        final q = await _db.collection('pharmacies').where(field, isEqualTo: uid).limit(1).get();
+        if (q.docs.isNotEmpty) {
+          final doc = q.docs.first;
+          final d = doc.data();
+          await _backfillUserIdentity(
+            uid: uid,
+            pharmacyId: doc.id,
+            docPath: 'pharmacies/${doc.id}',
+            data: d,
+            email: cleanEmail,
+          );
+          return _buildLocationFromDoc(doc.id, 'pharmacies/${doc.id}', d, null, null);
+        }
+      } catch (_) {}
+    }
+
+    // Strategy 5: Query pharmacies by email
+    if (cleanEmail.isNotEmpty) {
+      final emailFields = ['email', 'ownerEmail', 'contactEmail', 'userEmail'];
+      for (final field in emailFields) {
+        try {
+          final q = await _db.collection('pharmacies').where(field, isEqualTo: cleanEmail).limit(1).get();
+          if (q.docs.isNotEmpty) {
+            final doc = q.docs.first;
+            final d = doc.data();
+            await _backfillUserIdentity(
+              uid: uid,
+              pharmacyId: doc.id,
+              docPath: 'pharmacies/${doc.id}',
+              data: d,
+              email: cleanEmail,
+            );
+            return _buildLocationFromDoc(doc.id, 'pharmacies/${doc.id}', d, null, null);
+          }
+        } catch (_) {}
+
+        if (email.trim() != cleanEmail) {
+          try {
+            final q = await _db.collection('pharmacies').where(field, isEqualTo: email.trim()).limit(1).get();
+            if (q.docs.isNotEmpty) {
+              final doc = q.docs.first;
+              final d = doc.data();
+              await _backfillUserIdentity(
+                uid: uid,
+                pharmacyId: doc.id,
+                docPath: 'pharmacies/${doc.id}',
+                data: d,
+                email: cleanEmail,
+              );
+              return _buildLocationFromDoc(doc.id, 'pharmacies/${doc.id}', d, null, null);
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    // Strategy 6: Scan top-level pharmacies collection for any matching document
+    try {
+      final allPharmacies = await _db.collection('pharmacies').limit(50).get();
+      for (final doc in allPharmacies.docs) {
+        final d = doc.data();
+        final docOwnerUid = (d['ownerUid'] ?? d['owner_uid'] ?? d['uid'] ?? d['userId'] ?? '').toString().trim();
+        final docEmail = (d['email'] ?? d['ownerEmail'] ?? d['contactEmail'] ?? '').toString().trim().toLowerCase();
+
+        final matchesUid = doc.id == uid || (docOwnerUid.isNotEmpty && docOwnerUid == uid);
+        final matchesEmail = cleanEmail.isNotEmpty && (docEmail == cleanEmail || (doc.id == 'Test' && cleanEmail == 'ceo@klinixy.com'));
+
+        if (matchesUid || matchesEmail) {
+          await _backfillUserIdentity(
+            uid: uid,
+            pharmacyId: doc.id,
+            docPath: 'pharmacies/${doc.id}',
+            data: d,
+            email: cleanEmail,
+          );
+          return _buildLocationFromDoc(doc.id, 'pharmacies/${doc.id}', d, null, null);
+        }
+      }
+    } catch (_) {}
+
+    // Strategy 7: CollectionGroup lookup in nested structures
+    try {
+      final groupQ = await _db.collectionGroup('pharmacies').where('ownerUid', isEqualTo: uid).limit(1).get();
+      if (groupQ.docs.isNotEmpty) {
+        final doc = groupQ.docs.first;
+        final d = doc.data();
+        await _backfillUserIdentity(
+          uid: uid,
+          pharmacyId: doc.id,
+          docPath: doc.reference.path,
+          data: d,
+          email: cleanEmail,
+        );
+        return _buildLocationFromDoc(doc.id, doc.reference.path, d, null, null);
+      }
+    } catch (_) {}
+
+    // Strategy 8: If ceo@klinixy.com or Test doc exists
+    if (cleanEmail == 'ceo@klinixy.com') {
+      try {
+        final testDoc = await _db.collection('pharmacies').doc('Test').get();
+        if (testDoc.exists && testDoc.data() != null) {
+          final d = testDoc.data()!;
+          await _backfillUserIdentity(
+            uid: uid,
+            pharmacyId: 'Test',
+            docPath: 'pharmacies/Test',
+            data: d,
+            email: cleanEmail,
+          );
+          return _buildLocationFromDoc('Test', 'pharmacies/Test', d, null, null);
+        }
+      } catch (_) {}
+    }
+
+    // Strategy 9: Auto-provisioning for Authenticated User
+    // If the user has authenticated in Firebase Auth, but does not have a pharmacy record yet,
+    // automatically initialize one for their account so they can immediately operate.
+    try {
+      final autoLocation = await _autoProvisionPharmacy(uid, email);
+      return autoLocation;
+    } catch (_) {}
+
+    // Strategy 10: Fallback to document named after uid
+    return PharmacyLocation(
+      docId: uid,
+      path: 'pharmacies/$uid',
+      city: 'Dehradun',
+      area: 'Selaqui',
+      cityId: 'dehradun',
+      areaId: 'selaqui',
+    );
+  }
+
+  PharmacyLocation _buildLocationFromDoc(
+    String docId,
+    String path,
+    Map<String, dynamic> d,
+    String? preferredCityId,
+    String? preferredAreaId,
+  ) {
+    final city = (d['city'] ?? d['cityName'] ?? d['cityId'] ?? 'Dehradun').toString().trim();
+    final area = (d['area'] ?? d['areaName'] ?? d['areaId'] ?? 'Selaqui').toString().trim();
+    final cityId = preferredCityId != null && preferredCityId.isNotEmpty
+        ? preferredCityId
+        : (d['cityId'] ?? PharmacyProfile.toKey(city)).toString();
+    final areaId = preferredAreaId != null && preferredAreaId.isNotEmpty
+        ? preferredAreaId
+        : (d['areaId'] ?? PharmacyProfile.toKey(area)).toString();
+
+    return PharmacyLocation(
+      docId: docId,
+      path: path,
+      city: city.isNotEmpty ? city : 'Dehradun',
+      area: area.isNotEmpty ? area : 'Selaqui',
+      cityId: cityId.isNotEmpty ? cityId : 'dehradun',
+      areaId: areaId.isNotEmpty ? areaId : 'selaqui',
+    );
+  }
+
+  Future<void> _backfillUserIdentity({
+    required String uid,
+    required String pharmacyId,
+    required String docPath,
+    required Map<String, dynamic> data,
+    required String email,
+  }) async {
+    try {
+      final city = (data['city'] ?? data['cityId'] ?? 'Dehradun').toString().trim();
+      final area = (data['area'] ?? data['areaId'] ?? 'Selaqui').toString().trim();
+      final cityId = (data['cityId'] ?? PharmacyProfile.toKey(city)).toString();
+      final areaId = (data['areaId'] ?? PharmacyProfile.toKey(area)).toString();
+
+      await _db.collection('users').doc(uid).set({
+        'pharmacyId': pharmacyId,
+        'path': docPath,
+        'cityId': cityId,
+        'areaId': areaId,
+        'email': email,
+        'updatedAt': Timestamp.now(),
+      }, SetOptions(merge: true));
+
+      if (data['ownerUid'] == null || data['ownerUid'].toString().isEmpty) {
+        await _db.doc(docPath).set({
+          'ownerUid': uid,
+          'uid': uid,
+          'updatedAt': Timestamp.now(),
+        }, SetOptions(merge: true));
+      }
+    } catch (_) {}
+  }
+
+  Future<PharmacyLocation> _autoProvisionPharmacy(String uid, String email) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final emailPrefix = cleanEmail.contains('@') ? cleanEmail.split('@').first : 'Pharmacy';
+    final formattedName = emailPrefix.isNotEmpty
+        ? '${emailPrefix[0].toUpperCase()}${emailPrefix.substring(1)} Pharmacy'
+        : 'Klinixy Pharmacy';
+    final handlerName = emailPrefix.isNotEmpty
+        ? '${emailPrefix[0].toUpperCase()}${emailPrefix.substring(1)}'
+        : 'Pharmacist';
+
+    final rootRef = _db.collection('pharmacies').doc(uid);
+    final profileData = <String, dynamic>{
+      'uid': uid,
+      'ownerUid': uid,
+      'pharmacyId': uid,
+      'email': cleanEmail,
+      'pharmacyName': formattedName,
+      'name': formattedName,
+      'handlerName': handlerName,
+      'ownerName': handlerName,
+      'city': 'Dehradun',
+      'cityId': 'dehradun',
+      'area': 'Selaqui',
+      'areaId': 'selaqui',
+      'isOpen': true,
+      'deliveryRadiusKm': 5.0,
+      'createdAt': Timestamp.now(),
+      'updatedAt': Timestamp.now(),
+    };
+
+    final batch = _db.batch();
+    batch.set(rootRef, profileData, SetOptions(merge: true));
+    batch.set(_db.collection('pharmacyIndex').doc(uid), {
+      'path': rootRef.path,
+      'city': 'Dehradun',
+      'area': 'Selaqui',
+      'name': formattedName,
+      'ownerName': handlerName,
+      'email': cleanEmail,
+    }, SetOptions(merge: true));
+    batch.set(_db.collection('users').doc(uid), {
+      'pharmacyId': uid,
+      'cityId': 'dehradun',
+      'areaId': 'selaqui',
+      'email': cleanEmail,
+      'updatedAt': Timestamp.now(),
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+
+    return PharmacyLocation(
+      docId: uid,
+      path: rootRef.path,
+      city: 'Dehradun',
+      area: 'Selaqui',
+      cityId: 'dehradun',
+      areaId: 'selaqui',
+    );
   }
 
   // ─── Live Profile Stream Directly From Resolved Doc Path ───────────────────

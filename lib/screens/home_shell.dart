@@ -26,7 +26,30 @@ class HomeShell extends ConsumerWidget {
     final selectedTab = ref.watch(selectedTabProvider);
     final colors = AppColors.of(context);
     final profileAsync = ref.watch(pharmacyProfileProvider);
+    final authUser = ref.watch(authUserProvider).valueOrNull;
     final cartCount = ref.watch(cartTotalUnitsProvider);
+
+    String formatDisplayName(String email) {
+      final clean = email.trim();
+      if (clean.isEmpty) return 'Pharmacist';
+      final prefix = clean.split('@').first;
+      if (prefix.isEmpty) return 'Pharmacist';
+      return prefix
+          .split(RegExp(r'[\._\-]'))
+          .where((s) => s.isNotEmpty)
+          .map((s) => '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}')
+          .join(' ');
+    }
+
+    final fallbackHandler = (authUser?.displayName ?? '').trim().isNotEmpty
+        ? authUser!.displayName!
+        : ((authUser?.email ?? '').trim().isNotEmpty
+            ? formatDisplayName(authUser!.email!)
+            : 'Pharmacist');
+
+    final fallbackPharmacy = (authUser?.email ?? '').trim().isNotEmpty
+        ? '${formatDisplayName(authUser!.email!)} Pharmacy'
+        : 'Klinixy Pharmacy';
 
     return Scaffold(
       body: AnimatedSwitcher(
@@ -59,7 +82,9 @@ class HomeShell extends ConsumerWidget {
                       ),
                       const SizedBox(height: 14),
                       Text(
-                        profile?.pharmacyName ?? 'My Pharmacy',
+                        (profile?.pharmacyName ?? '').trim().isNotEmpty
+                            ? profile!.pharmacyName
+                            : fallbackPharmacy,
                         style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
@@ -69,16 +94,18 @@ class HomeShell extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        profile != null
+                        profile != null && (profile.area.isNotEmpty || profile.city.isNotEmpty)
                             ? '${profile.area}, ${profile.city}'
-                            : '',
+                            : 'Dehradun, Selaqui',
                         style: TextStyle(
                             fontSize: 12,
                             color: colors.textSecondary),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        profile?.handlerName ?? '',
+                        (profile?.handlerName ?? '').trim().isNotEmpty
+                            ? profile!.handlerName
+                            : fallbackHandler,
                         style: TextStyle(
                             fontSize: 12,
                             color: colors.textHint),

@@ -622,12 +622,14 @@ void showEditProfileDialog(
                     ? null
                     : () async {
                         if (!formKey.currentState!.validate()) return;
-                        if (profile == null) return;
+                        final authUser = ref.read(authServiceProvider).currentUser;
+                        final loc = ref.read(pharmacyLocationFutureProvider).valueOrNull;
+                        final docId = profile?.uid ?? loc?.docId ?? authUser?.uid;
+                        if (docId == null || docId.isEmpty) return;
 
                         setDlgState(() => isSaving = true);
                         try {
-                          final loc = ref.read(pharmacyLocationFutureProvider).valueOrNull;
-                          final docPath = loc?.path ?? 'pharmacies/${profile.uid}';
+                          final docPath = loc?.path ?? 'pharmacies/$docId';
 
                           GeoPoint? geoPoint;
                           final parsedLat = double.tryParse(latCtrl.text.trim());
