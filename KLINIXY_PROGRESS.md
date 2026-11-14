@@ -12,9 +12,9 @@
 |:---|:---|:---:|:---:|:---|
 | **P0** | **Baseline + Cleanup** | 🟢 Complete | `a360050` | `flutter analyze` 0 issues, smoke test green, stray HTML moved, README rewritten. |
 | **P1** | **Reconcile Repo vs Live UI** | 🟢 Complete | `20ba9b3` | 5 tabs kept, Analytics banner linked, 15 live category chips added, modal Add Medicine, forgot-password flow. |
-| **P2** | **Pharmacy Location (GeoPoint + UI)** | 🟢 Complete | `in-progress` | GeoPoint coords, address, phone, isOpen toggle, delivery radius, geolocator GPS. |
-| **P3** | **Auth & Identity Hardening** | 🟡 Ready | Pending | Canonical `users/{uid}.pharmacyId`, forgot-password reset email, reachable logout. |
-| **P4** | **Firestore Scoped Security Rules** | ⚪ Pending | — | Per-pharmacy rules file in repo (not deployed), read/write protection. |
+| **P2** | **Pharmacy Location (GeoPoint + UI)** | 🟢 Complete | `23fd1d9` | GeoPoint coords, address, phone, isOpen toggle, delivery radius, geolocator GPS. |
+| **P3** | **Auth & Identity Hardening** | 🟢 Complete | `in-progress` | Single source `users/{uid}`, explicit un-onboarded state, forgot-password reset, reachable logout. |
+| **P4** | **Firestore Scoped Security Rules** | 🟡 Ready | Pending | Per-pharmacy rules file in repo (not deployed), read/write protection. |
 | **P5** | **Atomic Sale & Per-Pharmacy Counter** | ⚪ Pending | — | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
 | **P6** | **Real Thermal & PDF Printing** | ⚪ Pending | — | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
 | **P7** | **Itemized GST by HSN Slab** | ⚪ Pending | — | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
@@ -61,4 +61,15 @@
     - Store Open / Closed status switch and delivery radius configuration.
   - Integrated Location Status chip ("Location Set ✓" vs "Location Not Set") and gentle callout banner on Dashboard.
   - Mirrored updates to root `pharmacies/{id}`, hierarchical `cities/.../pharmacies/{id}`, and `pharmacyIndex/{id}`.
+  - Verified `flutter analyze` 0 issues and `flutter test` green.
+
+### [P3] Auth & Identity Hardening
+- **Goal:** Harden authentication identity resolution using `users/{uid}` as canonical source, remove silent fallbacks/dummy deletions, and enforce explicit un-onboarded handling.
+- **Actions:**
+  - Rewrote `resolvePharmacyLocation`:
+    - Checks `users/{uid}` single source of truth for canonical `pharmacyId`, `cityId`, and `areaId`.
+    - Removed arbitrary document deletion and hardcoded fallback data.
+    - If no pharmacy profile is associated with the user, throws `PharmacyNotOnboardedException`.
+  - Integrated explicit "Pharmacy Not Onboarded" error screen in `main.dart` with "Sign Out & Register" flow.
+  - Updated `signUp` to automatically write the canonical identity record to `users/{uid}` inside the atomic batch.
   - Verified `flutter analyze` 0 issues and `flutter test` green.
