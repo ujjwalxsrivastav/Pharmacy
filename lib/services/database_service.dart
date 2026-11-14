@@ -4,6 +4,7 @@ import '../models/medicine.dart';
 import '../models/sale.dart';
 import '../models/pharmacy_profile.dart';
 import '../providers/providers.dart';
+import 'order_contract.dart';
 
 /// Holds the resolved reference path for the logged-in pharmacy.
 class PharmacyLocation {
@@ -30,6 +31,8 @@ class DatabaseService {
   final PharmacyLocation location;
 
   DatabaseService({required this.location});
+
+  String get pharmacyId => location.docId;
 
   DocumentReference get _rootPharmacyRef =>
       _db.collection('pharmacies').doc(location.docId);
@@ -275,6 +278,117 @@ class DatabaseService {
     });
 
     return generatedSale;
+  }
+
+  // ─── Orders Inbox (Klinixy Quick-Commerce) ──────────────────────────────
+  Stream<List<KlinixyOrder>> getOrdersStream() {
+    return _db
+        .collection('orders')
+        .where('pharmacyId', isEqualTo: pharmacyId)
+        .snapshots()
+        .map((snapshot) {
+      final orders = snapshot.docs
+          .map((doc) => KlinixyOrder.fromDoc(doc))
+          .toList();
+      orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return orders;
+    });
+  }
+
+  Future<void> acceptOrder({
+    required KlinixyOrder order,
+    required String byUid,
+  }) async {
+    final orderRef = _db.collection('orders').doc(order.id);
+
+    await _db.runTransaction((transaction) async {
+      // 1. Verify and check stock for each item
+      for (final item in order.items) {
+        final stockDocRef =
+            _rootPharmacyRef.collection('stock').doc(item.medicineId);
+        final stockSnap = await transaction.get(stockDocRef);
+        if (stockSnap.exists && stockSnap.data() != null) {
+          final currentStock =
+              ((stockSnap.data()!['stock'] ?? 0) as num).toInt();
+          if (currentStock < item.quantity) {
+            throw Exception(
+                'Insufficient stock for ${item.medicineName}. Available: $currentStock, Required: ${item.quantity}');
+          }
+        }
+      }
+
+      // 2. Atomically decrement stock
+      for (final item in order.items) {
+        final stockDocRef =
+            _rootPharmacyRef.collection('stock').doc(item.medicineId);
+        transaction.update(stockDocRef, {
+          'stock': FieldValue.increment(-item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedBy': byUid,
+        });
+
+        final nestedStockDocRef =
+            _nestedPharmacyRef.collection('stock').doc(item.medicineId);
+        transaction.update(nestedStockDocRef, {
+          'stock': FieldValue.increment(-item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedBy': byUid,
+        });
+      }
+
+      // 3. Update order state
+      transaction.update(orderRef, {
+        'status': 'accepted',
+        'updatedAt': FieldValue.serverTimestamp(),
+        'statusHistory': FieldValue.arrayUnion([
+          {
+            'status': 'accepted',
+            'at': Timestamp.now(),
+            'by': byUid,
+          }
+        ]),
+      });
+    });
+  }
+
+  Future<void> rejectOrder({
+    required String orderId,
+    required String reason,
+    required String byUid,
+  }) async {
+    if (reason.trim().isEmpty) {
+      throw Exception('A mandatory reason is required to reject an order.');
+    }
+    await _db.collection('orders').doc(orderId).update({
+      'status': 'rejected',
+      'rejectionReason': reason.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'statusHistory': FieldValue.arrayUnion([
+        {
+          'status': 'rejected',
+          'at': Timestamp.now(),
+          'by': byUid,
+          'reason': reason.trim(),
+        }
+      ]),
+    });
+  }
+
+  Future<void> markOrderPacked({
+    required String orderId,
+    required String byUid,
+  }) async {
+    await _db.collection('orders').doc(orderId).update({
+      'status': 'packed',
+      'updatedAt': FieldValue.serverTimestamp(),
+      'statusHistory': FieldValue.arrayUnion([
+        {
+          'status': 'packed',
+          'at': Timestamp.now(),
+          'by': byUid,
+        }
+      ]),
+    });
   }
 }
 

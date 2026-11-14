@@ -17,9 +17,9 @@
 | **P4** | **Firestore Scoped Security Rules** | 🟢 Complete | `a0ebe30` | Per-pharmacy rules file in repo (rules file only, not deployed), read/write protection. |
 | **P5** | **Atomic Sale & Per-Pharmacy Counter** | 🟢 Complete | `f67dc43` | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
 | **P6** | **Real Thermal & PDF Printing** | 🟢 Complete | `f3617cc` | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
-| **P7** | **Itemized GST by HSN Slab** | 🟢 Complete | `in-progress` | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
-| **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | 🟡 Ready | Pending | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
-| **P9** | **Inventory Depth (FEFO, Batches, PO)** | ⚪ Pending | — | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
+| **P7** | **Itemized GST by HSN Slab** | 🟢 Complete | `6a636db` | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
+| **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | 🟢 Complete | `in-progress` | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
+| **P9** | **Inventory Depth (FEFO, Batches, PO)** | 🟡 Ready | Pending | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
 | **P10** | **Unified Analytics & Financial Reports** | ⚪ Pending | — | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
 | **P11** | **UX Polish & Keyboard-First POS** | ⚪ Pending | — | Riverpod persistent cart, keyboard shortcuts (Enter/Ctrl+Enter/Esc), barcode scan. |
 | **P12** | **Klinixy Branding Alignment** | ⚪ Pending | — | Systematic branding across app title, headers, invoices, web metadata. |
@@ -119,3 +119,23 @@
   - Updated `PrinterService`: prints HSN and slab in 80mm thermal receipts and itemized GST columns in financial reports.
   - Added unit test suite `test/billing_gst_test.dart` verifying multi-slab calculations (5% + 12% + 18%), backward-compatible deserialization, and Kaccha 0-tax behavior.
   - Verified `flutter analyze` passing with 0 issues and `flutter test` passing (4/4 tests green).
+
+### [P8] Orders Inbox (Klinixy Quick-Commerce)
+- **Goal:** Build the complete quick-commerce online orders workflow connecting the Customer app, Pharmacy dashboard, and Rider app based on §5 ecosystem contracts.
+- **Actions:**
+  - Implemented `lib/services/order_contract.dart`:
+    - Strict `KlinixyOrder`, `OrderItem`, and `OrderStatusEntry` contracts matching the Firestore top-level `orders` schema.
+    - Status lifecycle: `placed` → `accepted` → `packed` → `rider_assigned` → `picked` → `delivered`, or `rejected`/`cancelled`.
+  - Added order operations to `DatabaseService`:
+    - `getOrdersStream()`: real-time Firestore listener filtered by authenticated `pharmacyId`.
+    - `acceptOrder`: transactional verification of stock availability and atomic decrement of stock across root and nested collections before marking `accepted` with `statusHistory` logging.
+    - `rejectOrder`: requires mandatory rejection reason (e.g. out of stock, closed), updates status to `rejected`, and appends reason to `statusHistory` without touching stock.
+    - `markOrderPacked`: sets status to `packed` indicating ready for rider pickup.
+  - Added `ordersStreamProvider` and `pendingOrdersCountProvider` in `lib/providers/providers.dart`.
+  - Created `OrdersScreen` (`lib/screens/orders_screen.dart`):
+    - Filter chips (All, Placed, Accepted, Packed, In Transit, Delivered, Rejected).
+    - Itemized breakdown, customer delivery address and phone, prescription indicators, and status badges.
+    - Accept / Reject (with reason picker modal) / Mark Packed interactive actions.
+  - Linked Orders directly to `DashboardScreen` (top header icon with live count badge + urgent alert banner when new orders are placed) and `AlertsScreen` (inbox shortcut button).
+  - Added unit tests in `test/orders_contract_test.dart` verifying order serialization, status methods, and rejection reasons.
+  - Verified `flutter analyze` passing with 0 issues and `flutter test` passing (6/6 tests green).

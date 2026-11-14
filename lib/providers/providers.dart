@@ -5,6 +5,7 @@ import '../services/database_service.dart';
 import '../models/medicine.dart';
 import '../models/sale.dart';
 import '../models/pharmacy_profile.dart';
+import '../services/order_contract.dart';
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 class ThemeModeNotifier extends Notifier<bool> {
@@ -73,4 +74,16 @@ final salesStreamProvider = StreamProvider<List<Sale>>((ref) {
   final db = ref.watch(databaseServiceProvider);
   if (db == null) return Stream.value([]);
   return db.getSalesStream();
+});
+
+// ─── Orders Stream (Quick-Commerce Ecosystem) ─────────────────────────────────
+final ordersStreamProvider = StreamProvider<List<KlinixyOrder>>((ref) {
+  final db = ref.watch(databaseServiceProvider);
+  if (db == null) return Stream.value([]);
+  return db.getOrdersStream();
+});
+
+final pendingOrdersCountProvider = Provider<int>((ref) {
+  final orders = ref.watch(ordersStreamProvider).valueOrNull ?? [];
+  return orders.where((o) => o.isPlaced).length;
 });

@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../models/medicine.dart';
 import '../services/database_service.dart';
+import 'orders_screen.dart';
 
 class AlertsScreen extends ConsumerStatefulWidget {
   const AlertsScreen({super.key});
@@ -61,23 +62,60 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                 // Header
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        'Alerts & Inventory Health',
-                        style: GoogleFonts.inter(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textPrimary,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Alerts & Inventory Health',
+                              style: GoogleFonts.inter(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              'Real-time stock warnings & expiration monitoring',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: colors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        'Real-time stock warnings & expiration monitoring',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: colors.textSecondary,
-                        ),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final pendingOrders =
+                              ref.watch(pendingOrdersCountProvider);
+                          return ElevatedButton.icon(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const OrdersScreen()),
+                            ),
+                            icon: const Icon(Icons.inbox_outlined, size: 16),
+                            label: Text(
+                              pendingOrders > 0
+                                  ? 'Orders ($pendingOrders)'
+                                  : 'Orders Inbox',
+                              style: GoogleFonts.inter(
+                                  fontSize: 12, fontWeight: FontWeight.w700),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: pendingOrders > 0
+                                  ? AppColors.error
+                                  : AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

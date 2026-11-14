@@ -8,6 +8,7 @@ import '../widgets/glass_stat_card.dart';
 import '../widgets/sales_chart.dart';
 import '../widgets/profile_bottom_sheet.dart';
 import '../models/sale.dart';
+import 'orders_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -23,6 +24,7 @@ class DashboardScreen extends ConsumerWidget {
     final medicinesAsync = ref.watch(medicinesStreamProvider);
     final salesAsync = ref.watch(salesStreamProvider);
     final profileAsync = ref.watch(pharmacyProfileProvider);
+    final pendingOrders = ref.watch(pendingOrdersCountProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -128,6 +130,61 @@ class DashboardScreen extends ConsumerWidget {
                           ]),
                         ),
                         GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const OrdersScreen()),
+                          ),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              color: pendingOrders > 0
+                                  ? AppColors.error.withValues(alpha: 0.15)
+                                  : colors.surfaceLight,
+                              border: pendingOrders > 0
+                                  ? Border.all(
+                                      color: AppColors.error
+                                          .withValues(alpha: 0.5))
+                                  : null,
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Icon(
+                                  Icons.shopping_bag_outlined,
+                                  color: pendingOrders > 0
+                                      ? AppColors.error
+                                      : colors.textPrimary,
+                                  size: 22,
+                                ),
+                                if (pendingOrders > 0)
+                                  Positioned(
+                                    top: 6,
+                                    right: 6,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.error,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Text(
+                                        '$pendingOrders',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
                           onTap: () => ref.read(themeModeProvider.notifier).toggle(),
                           child: Container(
                             width: 44, height: 44,
@@ -196,6 +253,75 @@ class DashboardScreen extends ConsumerWidget {
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                    ],
+                    if (pendingOrders > 0) ...[
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const OrdersScreen()),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: AppColors.error.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.notifications_active_rounded,
+                                  color: AppColors.error, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$pendingOrders New Customer Order${pendingOrders > 1 ? 's' : ''} Waiting!',
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                        color: colors.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Tap to review, accept, and prepare for delivery.',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          color: colors.textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const OrdersScreen()),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  backgroundColor: AppColors.error,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text(
+                                  'Review',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
