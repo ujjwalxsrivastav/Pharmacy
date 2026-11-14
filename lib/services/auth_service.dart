@@ -48,7 +48,7 @@ class AuthService {
 
     final batch = _db.batch();
 
-    // 1. Root pharmacies doc (matches existing backend schema)
+    // 1. Root pharmacies doc: pharmacies/{uid}
     final rootRef = _db.collection('pharmacies').doc(uid);
     batch.set(rootRef, profile.toMap(), SetOptions(merge: true));
 
@@ -80,62 +80,87 @@ class AuthService {
   // ─── Locate Exact Pharmacy Document in Backend ────────────────────────────
   Future<PharmacyLocation> resolvePharmacyLocation(String uid, String email) async {
     final cleanEmail = email.trim().toLowerCase();
+    final defaultPrefix = cleanEmail.split('@').first.toLowerCase();
 
-    // Strategy 1: Check root collection('pharmacies') by email
     try {
-      final snap = await _db
-          .collection('pharmacies')
-          .where('email', isEqualTo: cleanEmail)
-          .limit(1)
-          .get();
+      // 1. Fetch all documents from 'pharmacies' collection
+      final snap = await _db.collection('pharmacies').get();
 
-      if (snap.docs.isNotEmpty) {
-        final doc = snap.docs.first;
+      QueryDocumentSnapshot<Map<String, dynamic>>? realDoc;
+      QueryDocumentSnapshot<Map<String, dynamic>>? dummyDoc;
+
+      for (final doc in snap.docs) {
         final d = doc.data();
+        final docEmail = (d['email'] ?? '').toString().trim().toLowerCase();
+        final docOwnerUid = (d['ownerUid'] ?? '').toString().trim();
+        final docName = (d['name'] ?? d['pharmacyName'] ?? '').toString().trim();
+        final docOwner = (d['ownerName'] ?? d['handlerName'] ?? '').toString().trim();
+
+        final matchesUser = (docEmail == cleanEmail && cleanEmail.isNotEmpty) ||
+            docOwnerUid == uid ||
+            doc.id == uid;
+
+        if (matchesUser) {
+          // Check if this doc is the auto-generated dummy placeholder (CEO / Pharmacist)
+          final isDummy = (doc.id == uid &&
+              (docName.toUpperCase() == 'CEO' || docName.toLowerCase() == defaultPrefix) &&
+              (docOwner == 'Pharmacist' || docOwner.isEmpty));
+
+          if (isDummy) {
+            dummyDoc = doc;
+          } else {
+            // Found the real registered backend document (e.g. "Test")!
+            realDoc = doc;
+          }
+        }
+      }
+
+      // If we found both a real doc and a dummy doc, delete the dummy doc to clean up!
+      if (realDoc != null && dummyDoc != null) {
+        try {
+          await _db.collection('pharmacies').doc(dummyDoc.id).delete();
+          await _db.collection('pharmacyIndex').doc(dummyDoc.id).delete();
+        } catch (_) {}
+      }
+
+      final chosen = realDoc ?? dummyDoc;
+
+      if (chosen != null) {
+        final d = chosen.data();
+        final city = (d['city'] ?? d['cityId'] ?? 'Dehradun').toString();
+        final area = (d['area'] ?? d['areaId'] ?? 'Selaqui').toString();
+
+        // Ensure ownerUid matches the logged-in user
+        if ((d['ownerUid'] ?? '').toString() != uid) {
+          try {
+            await chosen.reference.update({'ownerUid': uid});
+          } catch (_) {}
+        }
+
+        // Also ensure it is mirrored in cities > areas > pharmacies
+        try {
+          final cKey = PharmacyProfile.toKey(city);
+          final aKey = PharmacyProfile.toKey(area);
+          await _db
+              .collection('cities')
+              .doc(cKey)
+              .collection('areas')
+              .doc(aKey)
+              .collection('pharmacies')
+              .doc(chosen.id)
+              .set(d, SetOptions(merge: true));
+        } catch (_) {}
+
         return PharmacyLocation(
-          docId: doc.id,
-          path: doc.reference.path,
-          city: (d['city'] ?? d['cityId'] ?? 'Dehradun').toString(),
-          area: (d['area'] ?? d['areaId'] ?? 'Selaqui').toString(),
+          docId: chosen.id,
+          path: chosen.reference.path,
+          city: city,
+          area: area,
         );
       }
     } catch (_) {}
 
-    // Strategy 2: Check root collection('pharmacies') by ownerUid
-    try {
-      final snap = await _db
-          .collection('pharmacies')
-          .where('ownerUid', isEqualTo: uid)
-          .limit(1)
-          .get();
-
-      if (snap.docs.isNotEmpty) {
-        final doc = snap.docs.first;
-        final d = doc.data();
-        return PharmacyLocation(
-          docId: doc.id,
-          path: doc.reference.path,
-          city: (d['city'] ?? d['cityId'] ?? 'Dehradun').toString(),
-          area: (d['area'] ?? d['areaId'] ?? 'Selaqui').toString(),
-        );
-      }
-    } catch (_) {}
-
-    // Strategy 3: Check root collection('pharmacies').doc(uid)
-    try {
-      final doc = await _db.collection('pharmacies').doc(uid).get();
-      if (doc.exists && doc.data() != null) {
-        final d = doc.data()!;
-        return PharmacyLocation(
-          docId: doc.id,
-          path: doc.reference.path,
-          city: (d['city'] ?? d['cityId'] ?? 'Dehradun').toString(),
-          area: (d['area'] ?? d['areaId'] ?? 'Selaqui').toString(),
-        );
-      }
-    } catch (_) {}
-
-    // Strategy 4: Search collectionGroup('pharmacies')
+    // Fallback: search collectionGroup('pharmacies')
     try {
       final groupSnap = await _db.collectionGroup('pharmacies').get();
       for (final doc in groupSnap.docs) {
@@ -154,20 +179,8 @@ class AuthService {
       }
     } catch (_) {}
 
-    // Fallback: create default root doc so user is never blocked
+    // Safe fallback if no doc found at all
     final defaultPath = 'pharmacies/$uid';
-    try {
-      final profile = PharmacyProfile(
-        uid: uid,
-        email: email,
-        pharmacyName: 'Test',
-        handlerName: 'Ujjwal',
-        city: 'Dehradun',
-        area: 'Selaqui',
-      );
-      await _db.doc(defaultPath).set(profile.toMap(), SetOptions(merge: true));
-    } catch (_) {}
-
     return PharmacyLocation(
       docId: uid,
       path: defaultPath,
@@ -199,6 +212,26 @@ class AuthService {
     };
 
     await _db.doc(docPath).update(updateData);
+
+    // Also mirror to nested path if applicable
+    try {
+      final docSnap = await _db.doc(docPath).get();
+      if (docSnap.exists) {
+        final d = docSnap.data()!;
+        final cKey = PharmacyProfile.toKey((d['city'] ?? d['cityId'] ?? '').toString());
+        final aKey = PharmacyProfile.toKey((d['area'] ?? d['areaId'] ?? '').toString());
+        if (cKey.isNotEmpty && aKey.isNotEmpty) {
+          await _db
+              .collection('cities')
+              .doc(cKey)
+              .collection('areas')
+              .doc(aKey)
+              .collection('pharmacies')
+              .doc(docSnap.id)
+              .update(updateData);
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> signOut() async => await _auth.signOut();

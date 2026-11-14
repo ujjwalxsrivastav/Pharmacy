@@ -49,25 +49,41 @@ class DashboardScreen extends ConsumerWidget {
                             Text('$greeting 👋', style: GoogleFonts.inter(fontSize: 14, color: colors.textSecondary)),
                             const SizedBox(height: 4),
                             profileAsync.when(
-                              data: (profile) => Text(
-                                profile?.handlerName ?? 'Pharmacist',
-                                style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              loading: () => Text('Welcome', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-                              error: (_, __) => Text('Welcome', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-                            ),
-                            profileAsync.maybeWhen(
-                              data: (profile) => profile != null
-                                  ? Text(
-                                      profile.pharmacyName,
-                                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary),
+                              data: (profile) {
+                                final handler = (profile?.handlerName ?? '').isNotEmpty
+                                    ? profile!.handlerName
+                                    : 'Ujjwal';
+                                final pharmacy = (profile?.pharmacyName ?? '').isNotEmpty
+                                    ? profile!.pharmacyName
+                                    : 'Test';
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      handler,
+                                      style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                    )
-                                  : const SizedBox.shrink(),
-                              orElse: () => const SizedBox.shrink(),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.local_pharmacy_rounded, size: 14, color: AppColors.primary),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          pharmacy,
+                                          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              },
+                              loading: () => Text('Welcome', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                              error: (_, __) => Text('Welcome', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
                             ),
                           ]),
                         ),
