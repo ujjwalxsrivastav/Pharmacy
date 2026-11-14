@@ -19,8 +19,8 @@
 | **P6** | **Real Thermal & PDF Printing** | 🟢 Complete | `f3617cc` | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
 | **P7** | **Itemized GST by HSN Slab** | 🟢 Complete | `6a636db` | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
 | **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | 🟢 Complete | `a9a0410` | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
-| **P9** | **Inventory Depth (FEFO, Batches, PO)** | 🟢 Complete | `in-progress` | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
-| **P10** | **Unified Analytics & Financial Reports** | 🟡 Ready | Pending | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
+| **P9** | **Inventory Depth (FEFO, Batches, PO)** | 🟢 Complete | `f808e43` | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
+| **P10** | **Unified Analytics & Financial Reports** | 🟢 Complete | `ebbdaaf` | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
 | **P11** | **UX Polish & Keyboard-First POS** | ⚪ Pending | — | Riverpod persistent cart, keyboard shortcuts (Enter/Ctrl+Enter/Esc), barcode scan. |
 | **P12** | **Klinixy Branding Alignment** | ⚪ Pending | — | Systematic branding across app title, headers, invoices, web metadata. |
 | **P13** | **Automated Tests & Quality Suite** | ⚪ Pending | — | Automated widget tests for POS maths, stock guards, and order states. |
@@ -158,4 +158,20 @@
     - Added `processReturn` in `DatabaseService`: transactional restock of returned items and generation of negative audit sale record (`REF-PH-...`) preserving historical audit integrity without deleting original sales.
     - Added "Process Return / Refund" modal in `SalesScreen` allowing selection of original bill and return items.
   - Created unit test suite `test/inventory_depth_test.dart` testing batch tracking, FEFO batch detection, and negative refund calculation (10/10 tests green).
+  - Verified `flutter analyze` passing with 0 issues.
+
+### [P10] Unified Analytics & Financial Reports
+- **Goal:** Unify the repository `SalesScreen` and the live Reports page spec (§2 & §3) into a single enterprise analytics surface featuring period presets, custom range picker, 4 standard financial KPI cards, 24-hour peak sales hours chart, top selling items, slow moving stock, category revenue breakdown, and multi-section CSV/Excel exports.
+- **Actions:**
+  - Standardized navigation and header in `SalesScreen`: back button returning to Dashboard / tab 0, "Reports" title, and green pill "Export" button with dropdown menu.
+  - Implemented 5 period filter presets: Today, 7 Days, Month (default!), Year, and Custom (calendar icon) opening `showDateRangePicker`.
+  - Configured 4 standard KPI cards: Total Revenue, Avg Order Value, GST Collected (CGST+SGST), and Invoice Types (Pakka vs Kaccha).
+  - Built 24-hour Peak Sales Hours & Store Traffic chart (12AM - 11PM) with peak period indicator badge.
+  - Added lower analytics sections:
+    - "Top Selling Items 🔥": Ranked list with units sold and total revenue, with empty state: "No sales in this filter".
+    - "Slow Moving Stock": Identifies active inventory with 0 or low sales, with empty states: "No stock data" / "All items are moving actively!".
+    - "Category Revenue Breakdown": Visual percentage bars with category revenue, with empty state: "No revenue data for selected range".
+  - Implemented multi-section CSV exports with standardized naming `Pharma_<Section>_yyyyMMdd_HHmm.csv` for Sales, Top Products, Slow Moving, Category Breakdown, and Full Aggregated Financial Report.
+  - Retained Sales Ledger search, Pakka/Kaccha filter, and customer return/refund modal.
+  - Created unit test suite `test/analytics_reports_test.dart` testing range filtering, KPIs, 24-hour peak hours, top selling, slow moving, and category revenue (16/16 tests green).
   - Verified `flutter analyze` passing with 0 issues.
