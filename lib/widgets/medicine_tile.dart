@@ -64,7 +64,7 @@ class MedicineTile extends StatelessWidget {
                 children: [
                   Text(medicine.name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
-                  Text('${medicine.category}  •  Exp: $expiryStr', style: GoogleFonts.inter(fontSize: 11, color: colors.textSecondary)),
+                  Text('${medicine.category}  •  ${medicine.gstSlab}% GST  •  Exp: $expiryStr', style: GoogleFonts.inter(fontSize: 11, color: colors.textSecondary)),
                 ],
               ),
             ),

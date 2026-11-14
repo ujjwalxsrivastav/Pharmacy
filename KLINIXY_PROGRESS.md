@@ -16,9 +16,9 @@
 | **P3** | **Auth & Identity Hardening** | 🟢 Complete | `a21905e` | Single source `users/{uid}`, explicit un-onboarded state, forgot-password reset, reachable logout. |
 | **P4** | **Firestore Scoped Security Rules** | 🟢 Complete | `a0ebe30` | Per-pharmacy rules file in repo (rules file only, not deployed), read/write protection. |
 | **P5** | **Atomic Sale & Per-Pharmacy Counter** | 🟢 Complete | `f67dc43` | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
-| **P6** | **Real Thermal & PDF Printing** | 🟢 Complete | `in-progress` | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
-| **P7** | **Itemized GST by HSN Slab** | 🟡 Ready | Pending | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
-| **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | ⚪ Pending | — | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
+| **P6** | **Real Thermal & PDF Printing** | 🟢 Complete | `f3617cc` | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
+| **P7** | **Itemized GST by HSN Slab** | 🟢 Complete | `in-progress` | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
+| **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | 🟡 Ready | Pending | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
 | **P9** | **Inventory Depth (FEFO, Batches, PO)** | ⚪ Pending | — | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
 | **P10** | **Unified Analytics & Financial Reports** | ⚪ Pending | — | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
 | **P11** | **UX Polish & Keyboard-First POS** | ⚪ Pending | — | Riverpod persistent cart, keyboard shortcuts (Enter/Ctrl+Enter/Esc), barcode scan. |
@@ -106,3 +106,16 @@
   - Wired real `Printing.layoutPdf` into POS billing dialog, sales transaction receipts, and financial report print buttons.
   - Resolved `image`/`archive` transitive dependency incompatibility via dependency override.
   - Verified `flutter analyze` passing with 0 issues and `flutter test` passing with 0 failures.
+
+### [P7] Itemized GST by HSN Slab
+- **Goal:** Replace flat 18% calculation with real pharmaceutical GST slabs (5%, 12%, 18%) configured per item by HSN code, displaying CGST and SGST intra-state splits on receipts, bills, and reports.
+- **Actions:**
+  - Updated `Medicine` model: added `hsn` (default `'3004'`) and `gstSlab` (default `12`, options 5/12/18%), with backward-compatible Firestore decoders.
+  - Updated Add Medicine modal, Quick Add dialog, and Edit Medicine dialogs with editable HSN Code and GST Slab dropdowns.
+  - Updated `SaleItem` model: added `hsn`, `gstSlab`, and computed `taxAmount`.
+  - Updated `Sale` model: added `cgst` (`taxAmount / 2`), `sgst` (`taxAmount / 2`), and `taxBySlab` map breakdown.
+  - Updated `CounterBillingScreen`: calculates itemized tax per item by its specific slab for Pakka bills, displays CGST & SGST intra-state split in footer, and charges 0 GST on Kaccha bills.
+  - Updated `BillReceiptDialog`: renders HSN and GST slab per line item, and displays CGST/SGST/Total GST breakdown.
+  - Updated `PrinterService`: prints HSN and slab in 80mm thermal receipts and itemized GST columns in financial reports.
+  - Added unit test suite `test/billing_gst_test.dart` verifying multi-slab calculations (5% + 12% + 18%), backward-compatible deserialization, and Kaccha 0-tax behavior.
+  - Verified `flutter analyze` passing with 0 issues and `flutter test` passing (4/4 tests green).

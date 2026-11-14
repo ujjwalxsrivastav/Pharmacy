@@ -157,8 +157,17 @@ class PrinterService {
                     children: [
                       pw.Expanded(
                         flex: 5,
-                        child: pw.Text(item.medicineName,
-                            style: const pw.TextStyle(fontSize: 8)),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(item.medicineName,
+                                style: const pw.TextStyle(fontSize: 8)),
+                            if (sale.isPakka)
+                              pw.Text('HSN: ${item.hsn} (${item.gstSlab}%)',
+                                  style: const pw.TextStyle(
+                                      fontSize: 6, color: PdfColors.grey700)),
+                          ],
+                        ),
                       ),
                       pw.Expanded(
                         flex: 2,
@@ -201,19 +210,9 @@ class PrinterService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('CGST (9%):',
+                    pw.Text('CGST (intra-state):',
                         style: const pw.TextStyle(fontSize: 7)),
-                    pw.Text('Rs. ${(sale.taxAmount / 2).toStringAsFixed(2)}',
-                        style: const pw.TextStyle(fontSize: 7)),
-                  ],
-                ),
-                pw.SizedBox(height: 2),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('SGST (9%):',
-                        style: const pw.TextStyle(fontSize: 7)),
-                    pw.Text('Rs. ${(sale.taxAmount / 2).toStringAsFixed(2)}',
+                    pw.Text('Rs. ${sale.cgst.toStringAsFixed(2)}',
                         style: const pw.TextStyle(fontSize: 7)),
                   ],
                 ),
@@ -221,7 +220,17 @@ class PrinterService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('Total Tax (18%):',
+                    pw.Text('SGST (intra-state):',
+                        style: const pw.TextStyle(fontSize: 7)),
+                    pw.Text('Rs. ${sale.sgst.toStringAsFixed(2)}',
+                        style: const pw.TextStyle(fontSize: 7)),
+                  ],
+                ),
+                pw.SizedBox(height: 2),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Total Tax (by slab):',
                         style: const pw.TextStyle(fontSize: 7)),
                     pw.Text('Rs. ${sale.taxAmount.toStringAsFixed(2)}',
                         style: const pw.TextStyle(fontSize: 7)),

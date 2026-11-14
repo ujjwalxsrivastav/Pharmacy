@@ -6,6 +6,9 @@ class SaleItem {
   final int quantity;
   final double unitPrice;
   final double totalPrice;
+  final String hsn;
+  final int gstSlab; // 5, 12, or 18%
+  final double taxAmount;
 
   SaleItem({
     required this.medicineId,
@@ -13,6 +16,9 @@ class SaleItem {
     required this.quantity,
     required this.unitPrice,
     required this.totalPrice,
+    this.hsn = '3004',
+    this.gstSlab = 12,
+    this.taxAmount = 0.0,
   });
 
   factory SaleItem.fromMap(Map<String, dynamic> data) {
@@ -22,6 +28,9 @@ class SaleItem {
       quantity: ((data['quantity'] ?? 1) as num).toInt(),
       unitPrice: ((data['unitPrice'] ?? 0.0) as num).toDouble(),
       totalPrice: ((data['totalPrice'] ?? 0.0) as num).toDouble(),
+      hsn: (data['hsn'] ?? '3004').toString(),
+      gstSlab: ((data['gstSlab'] ?? 12) as num).toInt(),
+      taxAmount: ((data['taxAmount'] ?? 0.0) as num).toDouble(),
     );
   }
 
@@ -31,6 +40,9 @@ class SaleItem {
         'quantity': quantity,
         'unitPrice': unitPrice,
         'totalPrice': totalPrice,
+        'hsn': hsn,
+        'gstSlab': gstSlab,
+        'taxAmount': taxAmount,
       };
 }
 
@@ -44,7 +56,7 @@ class Sale {
   final int quantity;
   final double unitPrice;
   final double subtotal;
-  final double taxAmount; // GST (18%) for pakka bill
+  final double taxAmount;
   final double totalPrice;
   final List<SaleItem> items;
   final DateTime date;
@@ -63,9 +75,11 @@ class Sale {
     required this.totalPrice,
     List<SaleItem>? items,
     DateTime? date,
-  })  : billNo = billNo ?? DateTime.now().millisecondsSinceEpoch.toString().substring(7),
+  })  : billNo = billNo ??
+            DateTime.now().millisecondsSinceEpoch.toString().substring(7),
         subtotal = subtotal ?? totalPrice,
-        taxAmount = taxAmount ?? (billType == 'pakka' ? totalPrice * 0.18 / 1.18 : 0.0),
+        taxAmount = taxAmount ??
+            (billType == 'pakka' ? totalPrice * 0.18 / 1.18 : 0.0),
         items = items ??
             [
               SaleItem(
@@ -79,11 +93,25 @@ class Sale {
         date = date ?? DateTime.now();
 
   bool get isPakka => billType == 'pakka';
+  double get cgst => taxAmount / 2;
+  double get sgst => taxAmount / 2;
+
+  Map<int, double> get taxBySlab {
+    final map = <int, double>{};
+    for (final item in items) {
+      if (item.taxAmount > 0) {
+        map[item.gstSlab] = (map[item.gstSlab] ?? 0.0) + item.taxAmount;
+      }
+    }
+    return map;
+  }
 
   factory Sale.fromMap(Map<String, dynamic> data, String documentId) {
     final rawItems = data['items'] as List<dynamic>?;
     final itemsList = rawItems != null
-        ? rawItems.map((e) => SaleItem.fromMap(Map<String, dynamic>.from(e))).toList()
+        ? rawItems
+            .map((e) => SaleItem.fromMap(Map<String, dynamic>.from(e)))
+            .toList()
         : <SaleItem>[];
 
     final total = (data['totalPrice'] ?? 0.0).toDouble();
@@ -94,14 +122,23 @@ class Sale {
 
     return Sale(
       id: documentId,
-      billNo: data['billNo'] ?? documentId.substring(0, documentId.length > 6 ? 6 : documentId.length),
+      billNo: data['billNo'] ??
+          documentId.substring(0, documentId.length > 6 ? 6 : documentId.length),
       billType: bType,
-      medicineId: data['medicineId'] ?? (itemsList.isNotEmpty ? itemsList.first.medicineId : ''),
-      medicineName: data['medicineName'] ?? (itemsList.isNotEmpty ? itemsList.first.medicineName : 'Medicine'),
+      medicineId: data['medicineId'] ??
+          (itemsList.isNotEmpty ? itemsList.first.medicineId : ''),
+      medicineName: data['medicineName'] ??
+          (itemsList.isNotEmpty ? itemsList.first.medicineName : 'Medicine'),
       customerName: data['customerName'] ?? 'Walk-in',
-      quantity: ((data['quantity'] ?? (itemsList.isNotEmpty ? itemsList.fold(0, (s, i) => s + i.quantity) : 1)) as num).toInt(),
+      quantity: ((data['quantity'] ??
+              (itemsList.isNotEmpty
+                  ? itemsList.fold(0, (s, i) => s + i.quantity)
+                  : 1)) as num)
+          .toInt(),
       unitPrice: ((data['unitPrice'] ?? 0.0) as num).toDouble(),
-      subtotal: data['subtotal'] != null ? (data['subtotal'] as num).toDouble() : (total - tax),
+      subtotal: data['subtotal'] != null
+          ? (data['subtotal'] as num).toDouble()
+          : (total - tax),
       taxAmount: tax,
       totalPrice: total,
       items: itemsList.isNotEmpty

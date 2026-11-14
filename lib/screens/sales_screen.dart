@@ -216,7 +216,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                   width: isWide ? (constraints.maxWidth - 36) / 4 : (constraints.maxWidth - 12) / 2,
                                   title: 'Total GST (INR)',
                                   value: '₹${NumberFormat('#,##0').format(totalGst)}',
-                                  subtitle: '18% GST on Pakka Bills',
+                                  subtitle: 'CGST + SGST collected',
                                   icon: Icons.account_balance_outlined,
                                   iconColor: AppColors.accent,
                                   colors: colors,
@@ -937,7 +937,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total GST Collected (18%):'),
+                      const Text('Total GST Collected (CGST + SGST):'),
                       Text('₹${NumberFormat('#,##0.00').format(totalGst)}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],

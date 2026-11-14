@@ -239,14 +239,26 @@ class BillReceiptDialog extends StatelessWidget {
                     children: [
                       Expanded(
                         flex: 5,
-                        child: Text(
-                          item.medicineName,
-                          style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: colors.textPrimary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              item.medicineName,
+                              style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: colors.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (sale.isPakka)
+                              Text(
+                                'HSN: ${item.hsn} (${item.gstSlab}%)',
+                                style: GoogleFonts.robotoMono(
+                                    fontSize: 9, color: colors.textHint),
+                              ),
+                          ],
                         ),
                       ),
                       Expanded(
@@ -306,7 +318,35 @@ class BillReceiptDialog extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('GST (18%):',
+                    Text('CGST (intra-state):',
+                        style: GoogleFonts.inter(
+                            fontSize: 13, color: colors.textSecondary)),
+                    Text('₹${sale.cgst.toStringAsFixed(2)}',
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary)),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('SGST (intra-state):',
+                        style: GoogleFonts.inter(
+                            fontSize: 13, color: colors.textSecondary)),
+                    Text('₹${sale.sgst.toStringAsFixed(2)}',
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary)),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Total GST Collected:',
                         style: GoogleFonts.inter(
                             fontSize: 13, color: colors.textSecondary)),
                     Text('₹${sale.taxAmount.toStringAsFixed(2)}',

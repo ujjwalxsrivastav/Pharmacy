@@ -10,6 +10,8 @@ class Medicine {
   final int reorderLevel; // min safe stock
   final double price;
   final double costPrice;
+  final String hsn;
+  final int gstSlab; // 5, 12, or 18%
   final DateTime expiryDate;
   final DateTime createdAt;
 
@@ -23,6 +25,8 @@ class Medicine {
     this.reorderLevel = 10,
     required this.price,
     this.costPrice = 0.0,
+    this.hsn = '3004',
+    this.gstSlab = 12,
     required this.expiryDate,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
@@ -47,6 +51,8 @@ class Medicine {
       reorderLevel: ((data['reorderLevel'] ?? data['minStock'] ?? 10) as num).toInt(),
       price: ((data['price'] ?? 0.0) as num).toDouble(),
       costPrice: ((data['costPrice'] ?? 0.0) as num).toDouble(),
+      hsn: (data['hsn'] ?? '3004').toString(),
+      gstSlab: ((data['gstSlab'] ?? 12) as num).toInt(),
       expiryDate: data['expiryDate'] != null
           ? (data['expiryDate'] is Timestamp
               ? (data['expiryDate'] as Timestamp).toDate()
@@ -71,6 +77,8 @@ class Medicine {
       'minStock': reorderLevel,
       'price': price,
       'costPrice': costPrice,
+      'hsn': hsn,
+      'gstSlab': gstSlab,
       'expiryDate': Timestamp.fromDate(expiryDate),
       'createdAt': Timestamp.fromDate(createdAt),
     };
@@ -85,6 +93,8 @@ class Medicine {
     int? reorderLevel,
     double? price,
     double? costPrice,
+    String? hsn,
+    int? gstSlab,
     DateTime? expiryDate,
   }) {
     return Medicine(
@@ -97,6 +107,8 @@ class Medicine {
       reorderLevel: reorderLevel ?? this.reorderLevel,
       price: price ?? this.price,
       costPrice: costPrice ?? this.costPrice,
+      hsn: hsn ?? this.hsn,
+      gstSlab: gstSlab ?? this.gstSlab,
       expiryDate: expiryDate ?? this.expiryDate,
       createdAt: createdAt,
     );

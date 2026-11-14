@@ -21,6 +21,8 @@ class _AddMedicineScreenState extends ConsumerState<AddMedicineScreen> {
   final _costCtrl = TextEditingController();
   final _stockCtrl = TextEditingController();
   final _reorderCtrl = TextEditingController();
+  final _hsnCtrl = TextEditingController(text: '3004');
+  int _gstSlab = 12;
   String _category = 'Other';
   DateTime _expiryDate = DateTime.now().add(const Duration(days: 365));
   bool _isLoading = false;
@@ -31,6 +33,7 @@ class _AddMedicineScreenState extends ConsumerState<AddMedicineScreen> {
   void dispose() {
     _nameCtrl.dispose(); _genericCtrl.dispose(); _manufacturerCtrl.dispose();
     _priceCtrl.dispose(); _costCtrl.dispose(); _stockCtrl.dispose(); _reorderCtrl.dispose();
+    _hsnCtrl.dispose();
     super.dispose();
   }
 
@@ -75,6 +78,47 @@ class _AddMedicineScreenState extends ConsumerState<AddMedicineScreen> {
               Expanded(child: _buildField('Stock Qty *', _stockCtrl, colors, keyboard: TextInputType.number, validator: (v) => v!.isEmpty ? 'Required' : null)),
               const SizedBox(width: 12),
               Expanded(child: _buildField('Reorder Level', _reorderCtrl, colors, keyboard: TextInputType.number)),
+            ]),
+            Row(children: [
+              Expanded(child: _buildField('HSN Code', _hsnCtrl, colors)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('GST Slab *',
+                          style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: colors.textSecondary,
+                              fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                            color: colors.surfaceLight,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _gstSlab,
+                            isExpanded: true,
+                            dropdownColor: colors.surface,
+                            style: GoogleFonts.inter(color: colors.textPrimary),
+                            items: const [
+                              DropdownMenuItem(value: 5, child: Text('5% GST')),
+                              DropdownMenuItem(value: 12, child: Text('12% GST')),
+                              DropdownMenuItem(value: 18, child: Text('18% GST')),
+                            ],
+                            onChanged: (v) => setState(() => _gstSlab = v ?? 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ]),
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
@@ -123,6 +167,8 @@ class _AddMedicineScreenState extends ConsumerState<AddMedicineScreen> {
         reorderLevel: int.tryParse(_reorderCtrl.text) ?? 10,
         price: double.tryParse(_priceCtrl.text) ?? 0,
         costPrice: double.tryParse(_costCtrl.text) ?? 0,
+        hsn: _hsnCtrl.text.trim().isNotEmpty ? _hsnCtrl.text.trim() : '3004',
+        gstSlab: _gstSlab,
         expiryDate: _expiryDate,
       );
       final db = ref.read(databaseServiceProvider);

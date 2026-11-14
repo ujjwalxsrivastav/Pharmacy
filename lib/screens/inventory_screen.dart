@@ -562,6 +562,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             const Divider(height: 1),
             const SizedBox(height: 8),
             _detailRow('Category', med.category, colors),
+            _detailRow('HSN Code', med.hsn, colors),
+            _detailRow('GST Slab', '${med.gstSlab}%', colors),
             _detailRow('Manufacturer',
                 med.manufacturer.isEmpty ? '—' : med.manufacturer, colors),
             _detailRow('Stock', '${med.stock} units', colors),
@@ -618,8 +620,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final manufacturerCtrl = TextEditingController(text: med.manufacturer);
     final priceCtrl = TextEditingController(text: med.price.toString());
     final costCtrl = TextEditingController(text: med.costPrice.toString());
+    final hsnCtrl = TextEditingController(text: med.hsn);
     final minStockCtrl = TextEditingController(text: med.reorderLevel.toString());
     String category = med.category;
+    int gstSlab = med.gstSlab;
     DateTime expiry = med.expiryDate;
 
     final categories = [
@@ -696,6 +700,32 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: hsnCtrl,
+                          decoration:
+                              const InputDecoration(labelText: 'HSN Code'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          initialValue: [5, 12, 18].contains(gstSlab) ? gstSlab : 12,
+                          decoration:
+                              const InputDecoration(labelText: 'GST Slab'),
+                          items: const [
+                            DropdownMenuItem(value: 5, child: Text('5% GST')),
+                            DropdownMenuItem(value: 12, child: Text('12% GST')),
+                            DropdownMenuItem(value: 18, child: Text('18% GST')),
+                          ],
+                          onChanged: (v) => setDlgState(() => gstSlab = v ?? 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   TextFormField(
                     controller: minStockCtrl,
                     keyboardType: TextInputType.number,
@@ -744,6 +774,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     'manufacturer': manufacturerCtrl.text.trim(),
                     'price': double.tryParse(priceCtrl.text) ?? med.price,
                     'costPrice': double.tryParse(costCtrl.text) ?? med.costPrice,
+                    'hsn': hsnCtrl.text.trim().isNotEmpty ? hsnCtrl.text.trim() : '3004',
+                    'gstSlab': gstSlab,
                     'reorderLevel':
                         int.tryParse(minStockCtrl.text) ?? med.reorderLevel,
                     'minStock':
@@ -828,6 +860,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final priceCtrl = TextEditingController();
     final stockCtrl = TextEditingController(text: '50');
     final minStockCtrl = TextEditingController(text: '10');
+    final hsnCtrl = TextEditingController(text: '3004');
+    int gstSlab = 12;
     String selectedCat = _selectedCategory != 'All' ? _selectedCategory : 'Tablets';
     DateTime expiryDate = DateTime.now().add(const Duration(days: 365));
     bool isSaving = false;
@@ -911,6 +945,37 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           children: [
                             Expanded(
                               child: TextFormField(
+                                controller: hsnCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'HSN Code',
+                                  hintText: '3004',
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: DropdownButtonFormField<int>(
+                                initialValue: gstSlab,
+                                decoration: const InputDecoration(
+                                  labelText: 'GST Slab *',
+                                  isDense: true,
+                                ),
+                                items: const [
+                                  DropdownMenuItem(value: 5, child: Text('5% GST')),
+                                  DropdownMenuItem(value: 12, child: Text('12% GST')),
+                                  DropdownMenuItem(value: 18, child: Text('18% GST')),
+                                ],
+                                onChanged: (v) => setDlgState(() => gstSlab = v ?? 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
                                 controller: minStockCtrl,
                                 keyboardType: TextInputType.number,
                                 decoration: const InputDecoration(
@@ -976,6 +1041,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                             price: double.parse(priceCtrl.text.trim()),
                             stock: int.parse(stockCtrl.text.trim()),
                             reorderLevel: int.tryParse(minStockCtrl.text.trim()) ?? 10,
+                            hsn: hsnCtrl.text.trim().isNotEmpty ? hsnCtrl.text.trim() : '3004',
+                            gstSlab: gstSlab,
                             expiryDate: expiryDate,
                           );
 

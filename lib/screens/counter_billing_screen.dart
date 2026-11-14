@@ -53,7 +53,13 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
               return sum + (med.price * (item['qty'] as int));
             });
 
-            final gstAmount = _billType == 'pakka' ? (subtotal * 0.18) : 0.0;
+            final gstAmount = _billType == 'pakka'
+                ? cartItems.fold<double>(0, (sum, item) {
+                    final med = item['med'] as Medicine;
+                    final qty = item['qty'] as int;
+                    return sum + ((med.price * qty) * (med.gstSlab / 100.0));
+                  })
+                : 0.0;
             final grandTotal = subtotal + gstAmount;
 
             final searchResults = _searchQuery.isEmpty
@@ -379,7 +385,35 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('GST (18%):',
+                            Text('CGST (intra-state):',
+                                style: GoogleFonts.inter(
+                                    fontSize: 12, color: colors.textSecondary)),
+                            Text('₹${(gstAmount / 2).toStringAsFixed(2)}',
+                                style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.textPrimary)),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('SGST (intra-state):',
+                                style: GoogleFonts.inter(
+                                    fontSize: 12, color: colors.textSecondary)),
+                            Text('₹${(gstAmount / 2).toStringAsFixed(2)}',
+                                style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.textPrimary)),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Total Tax (by slab):',
                                 style: GoogleFonts.inter(
                                     fontSize: 12, color: colors.textSecondary)),
                             Text('₹${gstAmount.toStringAsFixed(2)}',
@@ -428,12 +462,19 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
                                       final saleItems = cartItems.map((item) {
                                         final med = item['med'] as Medicine;
                                         final qty = item['qty'] as int;
+                                        final itemTotal = med.price * qty;
+                                        final itemTax = _billType == 'pakka'
+                                            ? (itemTotal * (med.gstSlab / 100.0))
+                                            : 0.0;
                                         return SaleItem(
                                           medicineId: med.id,
                                           medicineName: med.name,
                                           quantity: qty,
                                           unitPrice: med.price,
-                                          totalPrice: med.price * qty,
+                                          totalPrice: itemTotal,
+                                          hsn: med.hsn,
+                                          gstSlab: med.gstSlab,
+                                          taxAmount: itemTax,
                                         );
                                       }).toList();
 
