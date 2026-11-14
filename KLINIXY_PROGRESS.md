@@ -23,7 +23,7 @@
 | **P10** | **Unified Analytics & Financial Reports** | 🟢 Complete | `ebbdaaf` | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
 | **P11** | **UX Polish & Keyboard-First POS** | 🟢 Complete | `69f134a` | Riverpod persistent cart, keyboard shortcuts (Enter/Ctrl+Enter/Esc), barcode scan. |
 | **P12** | **Klinixy Branding Alignment** | 🟢 Complete | `48bff84` | Systematic branding across app title, headers, invoices, web metadata. |
-| **P13** | **Automated Tests & Quality Suite** | ⚪ Pending | — | Automated widget tests for POS maths, stock guards, and order states. |
+| **P13** | **Automated Tests & Quality Suite** | 🟢 Complete | `3b01b3a` | Automated widget tests for POS maths, stock guards, and order states. |
 | **P14** | **Final End-to-End QA & Handover** | ⚪ Pending | — | 20-case checklist verification, demo seeding verification, handover documentation. |
 
 ---
@@ -207,3 +207,16 @@
   - Configured progressive web app identity and theme colors in `web/manifest.json` (`name: "Klinixy Pharmacy"`, `short_name: "Klinixy"`, `#00BFA6` theme color).
   - Updated widget smoke test in `test/widget_test.dart` to explicitly verify that `Klinixy Pharmacy` is rendered on boot.
   - Verified `flutter analyze` passing with 0 issues and all 20 tests passing.
+
+### [P13] Automated Tests & Quality Suite
+- **Goal:** Replace all temporary and minimal test harnesses with an automated unit and widget quality suite covering POS billing maths, stock guards, dashboard rendering, Riverpod state lifecycle, and orders contract without hitting production Firestore.
+- **Actions:**
+  - Created `DashboardScreen` widget test suite (`test/dashboard_widget_test.dart`):
+    - Verified rendering with seeded medicines, sales, and pharmacy profile (handler name, store title, 4 KPI cards, reports banner).
+    - Verified graceful empty-state handling with ₹0.00 and 0 orders today.
+  - Created `CounterBillingScreen` POS widget test suite (`test/pos_billing_widget_test.dart`):
+    - Verified guidance text and "Focus Search" action when cart is empty.
+    - Verified itemized bill breakdown: 40.00 subtotal, CGST (2.40), SGST (2.40), and 44.80 grand total for a 12% GST medicine.
+  - Ensured header and skeleton layouts are flexible and responsive across mobile and desktop test viewports.
+  - Test suite total grew to 24 tests across 7 test files, all passing in 3 seconds.
+  - Verified `flutter analyze` passing with 0 issues.

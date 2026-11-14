@@ -326,27 +326,28 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     child: Row(
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Billing System',
-                              style: GoogleFonts.inter(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                                color: colors.textPrimary,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Billing System',
+                                style: GoogleFonts.inter(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.textPrimary,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Quick walk-in POS & instant receipt generator',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: colors.textSecondary,
+                              Text(
+                                'Quick walk-in POS & instant receipt generator',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: colors.textSecondary,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                        const Spacer(),
                         if (cartItems.isNotEmpty) ...[
                           TextButton.icon(
                             onPressed: () =>
