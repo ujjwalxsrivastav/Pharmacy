@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "klinixy-68521"
+  },
+  "targets": {
+    "klinixy-68521": {
+      "hosting": {
+        "pharmacy": [
+          "pharmacy-klinixy"
+        ]
+      }
+    }
+  }
+}

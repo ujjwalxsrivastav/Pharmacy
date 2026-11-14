@@ -31,6 +31,9 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+.firebase/
+.gradle/
+**/android/.gradle/
 
 # Symbolication related
 app.*.symbols
