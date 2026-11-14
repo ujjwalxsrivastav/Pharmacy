@@ -6,6 +6,7 @@ import '../providers/providers.dart';
 import '../models/medicine.dart';
 import '../models/sale.dart';
 import '../services/database_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/bill_receipt_dialog.dart';
 
 class CounterBillingScreen extends ConsumerStatefulWidget {
@@ -424,10 +425,6 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
 
                                     setState(() => _isProcessing = true);
                                     try {
-                                      final billNumber = DateTime.now()
-                                          .millisecondsSinceEpoch
-                                          .toString()
-                                          .substring(7);
                                       final saleItems = cartItems.map((item) {
                                         final med = item['med'] as Medicine;
                                         final qty = item['qty'] as int;
@@ -445,32 +442,19 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
                                               ? _customerCtrl.text.trim()
                                               : 'Walk-in';
 
-                                      final sale = Sale(
-                                        id: '',
-                                        billNo: billNumber,
-                                        billType: _billType,
-                                        medicineId: saleItems.first.medicineId,
-                                        medicineName:
-                                            saleItems.first.medicineName,
+                                      final authUser = ref.read(authServiceProvider).currentUser;
+
+                                      // Process sale & decrement stock atomically in one transaction
+                                      final completedSale = await db.processAtomicSale(
+                                        items: saleItems,
                                         customerName: custName,
-                                        quantity: saleItems.fold(
-                                            0, (s, i) => s + i.quantity),
-                                        unitPrice: saleItems.first.unitPrice,
+                                        customerPhone: '',
+                                        billType: _billType,
                                         subtotal: subtotal,
                                         taxAmount: gstAmount,
                                         totalPrice: grandTotal,
-                                        items: saleItems,
-                                        date: DateTime.now(),
+                                        updatedByUid: authUser?.uid,
                                       );
-
-                                      // 1. Record Sale in backend
-                                      await db.addSale(sale);
-
-                                      // 2. Decrement stock for all items
-                                      for (final item in saleItems) {
-                                        await db.decrementStock(
-                                            item.medicineId, item.quantity);
-                                      }
 
                                       if (mounted) {
                                         setState(() {
@@ -478,10 +462,10 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
                                           _customerCtrl.clear();
                                         });
 
-                                        // 3. Show Instant Thermal Receipt Dialog
+                                        // Show Instant Thermal Receipt Dialog
                                         await BillReceiptDialog.show(
                                           context,
-                                          sale: sale,
+                                          sale: completedSale,
                                           pharmacyName: profile?.pharmacyName ??
                                               'PHARMADASH HEALTHCARE',
                                           pharmacyAddress: profile != null

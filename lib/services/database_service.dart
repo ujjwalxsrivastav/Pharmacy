@@ -170,6 +170,112 @@ class DatabaseService {
           .set(sale.toMap(), SetOptions(merge: true));
     } catch (_) {}
   }
+
+  // ─── Atomic Sale Transaction & Sequential Counter ──────────────────────────
+  Future<Sale> processAtomicSale({
+    required List<SaleItem> items,
+    required String customerName,
+    required String customerPhone,
+    required String billType,
+    required double subtotal,
+    required double taxAmount,
+    required double totalPrice,
+    String? updatedByUid,
+  }) async {
+    final year = DateTime.now().year;
+    final counterRef = _rootPharmacyRef.collection('counters').doc('bill_counter_$year');
+
+    final generatedSale = await _db.runTransaction<Sale>((transaction) async {
+      // 1. Read sequential counter
+      final counterSnap = await transaction.get(counterRef);
+      int currentSeq = 0;
+      if (counterSnap.exists && counterSnap.data() != null) {
+        currentSeq = ((counterSnap.data()!['lastSeq'] ?? 0) as num).toInt();
+      }
+      final nextSeq = currentSeq + 1;
+      final seqStr = nextSeq.toString().padLeft(4, '0');
+      final billNo = 'PH-$year-$seqStr';
+
+      // 2. Verify stock availability for each item
+      for (final item in items) {
+        final stockDocRef = _rootPharmacyRef.collection('stock').doc(item.medicineId);
+        final stockSnap = await transaction.get(stockDocRef);
+        if (stockSnap.exists && stockSnap.data() != null) {
+          final currentStock = ((stockSnap.data()!['stock'] ?? 0) as num).toInt();
+          if (currentStock < item.quantity) {
+            throw Exception('Insufficient stock for ${item.medicineName}. Available: $currentStock, Required: ${item.quantity}');
+          }
+        }
+      }
+
+      // 3. Increment counter
+      transaction.set(counterRef, {
+        'lastSeq': nextSeq,
+        'year': year,
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (updatedByUid != null) 'updatedBy': updatedByUid,
+      }, SetOptions(merge: true));
+
+      // 4. Decrement stock atomically
+      for (final item in items) {
+        final stockDocRef = _rootPharmacyRef.collection('stock').doc(item.medicineId);
+        transaction.update(stockDocRef, {
+          'stock': FieldValue.increment(-item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+          if (updatedByUid != null) 'updatedBy': updatedByUid,
+        });
+
+        final nestedStockDocRef = _nestedPharmacyRef.collection('stock').doc(item.medicineId);
+        transaction.update(nestedStockDocRef, {
+          'stock': FieldValue.increment(-item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+          if (updatedByUid != null) 'updatedBy': updatedByUid,
+        });
+      }
+
+      // 5. Create Sale document in root & nested
+      final saleRef = _rootPharmacyRef.collection('sales').doc();
+      final saleData = {
+        'billNo': billNo,
+        'billType': billType,
+        'customerName': customerName.trim().isNotEmpty ? customerName.trim() : 'Walk-in',
+        'customerPhone': customerPhone.trim(),
+        'items': items.map((i) => i.toMap()).toList(),
+        'quantity': items.fold<int>(0, (sum, i) => sum + i.quantity),
+        'medicineName': items.isNotEmpty ? items.first.medicineName : 'Medicine',
+        'medicineId': items.isNotEmpty ? items.first.medicineId : '',
+        'unitPrice': items.isNotEmpty ? items.first.unitPrice : 0.0,
+        'subtotal': subtotal,
+        'taxAmount': taxAmount,
+        'totalPrice': totalPrice,
+        'date': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (updatedByUid != null) 'updatedBy': updatedByUid,
+      };
+
+      transaction.set(saleRef, saleData);
+      final nestedSaleRef = _nestedPharmacyRef.collection('sales').doc(saleRef.id);
+      transaction.set(nestedSaleRef, saleData);
+
+      return Sale(
+        id: saleRef.id,
+        billNo: billNo,
+        billType: billType,
+        customerName: customerName.trim().isNotEmpty ? customerName.trim() : 'Walk-in',
+        medicineId: items.isNotEmpty ? items.first.medicineId : '',
+        medicineName: items.isNotEmpty ? items.first.medicineName : 'Medicine',
+        quantity: items.fold<int>(0, (sum, i) => sum + i.quantity),
+        unitPrice: items.isNotEmpty ? items.first.unitPrice : 0.0,
+        subtotal: subtotal,
+        taxAmount: taxAmount,
+        totalPrice: totalPrice,
+        items: items,
+        date: DateTime.now(),
+      );
+    });
+
+    return generatedSale;
+  }
 }
 
 // ─── Database service provider ───────────────────────────────────────────────

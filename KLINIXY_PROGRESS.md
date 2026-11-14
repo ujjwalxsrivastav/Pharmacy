@@ -14,9 +14,9 @@
 | **P1** | **Reconcile Repo vs Live UI** | 🟢 Complete | `20ba9b3` | 5 tabs kept, Analytics banner linked, 15 live category chips added, modal Add Medicine, forgot-password flow. |
 | **P2** | **Pharmacy Location (GeoPoint + UI)** | 🟢 Complete | `23fd1d9` | GeoPoint coords, address, phone, isOpen toggle, delivery radius, geolocator GPS. |
 | **P3** | **Auth & Identity Hardening** | 🟢 Complete | `a21905e` | Single source `users/{uid}`, explicit un-onboarded state, forgot-password reset, reachable logout. |
-| **P4** | **Firestore Scoped Security Rules** | 🟢 Complete | `in-progress` | Per-pharmacy rules file in repo (rules file only, not deployed), read/write protection. |
-| **P5** | **Atomic Sale & Per-Pharmacy Counter** | 🟡 Ready | Pending | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
-| **P6** | **Real Thermal & PDF Printing** | ⚪ Pending | — | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
+| **P4** | **Firestore Scoped Security Rules** | 🟢 Complete | `a0ebe30` | Per-pharmacy rules file in repo (rules file only, not deployed), read/write protection. |
+| **P5** | **Atomic Sale & Per-Pharmacy Counter** | 🟢 Complete | `in-progress` | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
+| **P6** | **Real Thermal & PDF Printing** | 🟡 Ready | Pending | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
 | **P7** | **Itemized GST by HSN Slab** | ⚪ Pending | — | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
 | **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | ⚪ Pending | — | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
 | **P9** | **Inventory Depth (FEFO, Batches, PO)** | ⚪ Pending | — | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
@@ -82,4 +82,15 @@
   - Protected `isVerified` field from non-admin client modifications.
   - Scoped `orders` collection so pharmacies can only read and transition statuses of their own assigned orders.
   - Rules updated in the repo file only (not deployed — Maalik deploys).
+  - Verified `flutter analyze` 0 issues and `flutter test` green.
+
+### [P5] Atomic Sale & Per-Pharmacy Counter
+- **Goal:** Eliminate partial writes and race conditions by making billing execution fully transactional with guaranteed sequential numbering.
+- **Actions:**
+  - Implemented `processAtomicSale` inside a Firestore `runTransaction`:
+    - Checks stock availability of all items in cart before deducting (guard against negative inventory).
+    - Sequential bill counter per pharmacy per year format `PH-YYYY-####` stored at `pharmacies/{docId}/counters/bill_counter_$year`.
+    - Decrements stock across both root and nested paths atomically.
+    - Creates sale document in root and nested subcollections with server `Timestamp` and `updatedBy`.
+  - Replaced legacy sequential loop in `CounterBillingScreen` with single atomic invocation.
   - Verified `flutter analyze` 0 issues and `flutter test` green.
