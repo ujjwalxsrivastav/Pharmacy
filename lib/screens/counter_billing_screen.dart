@@ -6,6 +6,7 @@ import '../providers/providers.dart';
 import '../models/medicine.dart';
 import '../models/sale.dart';
 import '../services/database_service.dart';
+import '../widgets/bill_receipt_dialog.dart';
 
 class CounterBillingScreen extends ConsumerStatefulWidget {
   const CounterBillingScreen({super.key});
@@ -17,178 +18,523 @@ class CounterBillingScreen extends ConsumerStatefulWidget {
 class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
   final Map<String, int> _cart = {};
   final TextEditingController _searchCtrl = TextEditingController();
+  final TextEditingController _customerCtrl = TextEditingController();
   String _searchQuery = '';
+  String _billType = 'pakka'; // 'pakka' or 'kaccha'
+  bool _isProcessing = false;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _customerCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final medicinesAsync = ref.watch(medicinesStreamProvider);
+    final profile = ref.watch(pharmacyProfileProvider).valueOrNull;
 
     return Scaffold(
       body: SafeArea(
         child: medicinesAsync.when(
           data: (medicines) {
-            final cartItems = _cart.entries.where((e) => medicines.any((m) => m.id == e.key)).map((e) {
+            final cartItems = _cart.entries
+                .where((e) => medicines.any((m) => m.id == e.key))
+                .map((e) {
               final med = medicines.firstWhere((m) => m.id == e.key);
               return {'med': med, 'qty': e.value};
             }).toList();
 
-            final total = cartItems.fold<double>(0, (sum, item) {
+            final subtotal = cartItems.fold<double>(0, (sum, item) {
               final med = item['med'] as Medicine;
               return sum + (med.price * (item['qty'] as int));
             });
 
+            final gstAmount = _billType == 'pakka' ? (subtotal * 0.18) : 0.0;
+            final grandTotal = subtotal + gstAmount;
+
             final searchResults = _searchQuery.isEmpty
                 ? <Medicine>[]
-                : medicines.where((m) =>
-                    m.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                    m.genericName.toLowerCase().contains(_searchQuery.toLowerCase())).take(5).toList();
+                : medicines
+                    .where((m) =>
+                        m.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                        m.genericName.toLowerCase().contains(_searchQuery.toLowerCase()))
+                    .take(6)
+                    .toList();
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: Text('Counter Billing', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                  child: Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Billing System',
+                              style: GoogleFonts.inter(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.textPrimary)),
+                          Text('Quick walk-in pos & instant receipt generator',
+                              style: GoogleFonts.inter(
+                                  fontSize: 12, color: colors.textSecondary)),
+                        ],
+                      ),
+                      const Spacer(),
+                      if (cartItems.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8)),
+                          child: Text('${cartItems.length} items',
+                              style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary)),
+                        ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+
+                // Bill Type Selector & Customer Input
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      // Pakka Bill Chip
+                      ChoiceChip(
+                        label: const Text('Pakka Bill (+GST)'),
+                        selected: _billType == 'pakka',
+                        onSelected: (sel) {
+                          if (sel) setState(() => _billType = 'pakka');
+                        },
+                        selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                        labelStyle: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _billType == 'pakka'
+                              ? AppColors.primary
+                              : colors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Kaccha Bill Chip
+                      ChoiceChip(
+                        label: const Text('Kaccha Bill'),
+                        selected: _billType == 'kaccha',
+                        onSelected: (sel) {
+                          if (sel) setState(() => _billType = 'kaccha');
+                        },
+                        selectedColor: AppColors.warning.withValues(alpha: 0.2),
+                        labelStyle: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _billType == 'kaccha'
+                              ? AppColors.warning
+                              : colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Customer Name input
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    controller: _customerCtrl,
+                    style: GoogleFonts.inter(fontSize: 13, color: colors.textPrimary),
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.person_outline, size: 20),
+                      hintText: 'Customer Name (optional)',
+                      isDense: true,
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Medicine Search input
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: TextField(
                     controller: _searchCtrl,
                     onChanged: (v) => setState(() => _searchQuery = v),
-                    style: GoogleFonts.inter(color: colors.textPrimary),
+                    style: GoogleFonts.inter(fontSize: 13, color: colors.textPrimary),
                     decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search),
-                      hintText: 'Search medicine to add...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      hintText: 'Search medicines to add...',
+                      isDense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); })
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
                           : null,
                     ),
                   ),
                 ),
+
+                // Search Results Dropdown List
                 if (searchResults.isNotEmpty) ...[
-                  const SizedBox(height: 10),
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(color: colors.surfaceCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: colors.surfaceLight)),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: searchResults.map((med) => ListTile(
-                        title: Text(med.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: colors.textPrimary)),
-                        subtitle: Text('Stock: ${med.stock} • ₹${med.price.toStringAsFixed(2)}', style: GoogleFonts.inter(fontSize: 12, color: colors.textSecondary)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.add_shopping_cart, color: AppColors.primary),
-                          onPressed: () => setState(() { _cart[med.id] = (_cart[med.id] ?? 0) + 1; _searchCtrl.clear(); _searchQuery = ''; }),
+                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: colors.surfaceCard,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
-                      )).toList(),
+                      ],
+                    ),
+                    child: Column(
+                      children: searchResults.map((med) {
+                        return ListTile(
+                          dense: true,
+                          title: Text(med.name,
+                              style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.textPrimary)),
+                          subtitle: Text(
+                              '₹${med.price.toStringAsFixed(2)} • Stock: ${med.stock}',
+                              style: GoogleFonts.inter(
+                                  fontSize: 11, color: colors.textSecondary)),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.add_circle,
+                                color: AppColors.primary),
+                            onPressed: med.stock <= 0
+                                ? null
+                                : () {
+                                    final current = _cart[med.id] ?? 0;
+                                    if (current < med.stock) {
+                                      setState(() {
+                                        _cart[med.id] = current + 1;
+                                        _searchCtrl.clear();
+                                        _searchQuery = '';
+                                      });
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                            content: Text(
+                                                'Not enough stock! Only ${med.stock} left.')),
+                                      );
+                                    }
+                                  },
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ],
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text('Current Cart', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary)),
-                ),
-                const SizedBox(height: 10),
+
+                // Cart Items Section
                 Expanded(
                   child: cartItems.isEmpty
-                      ? Center(child: Text('Cart is empty', style: GoogleFonts.inter(color: colors.textSecondary)))
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.point_of_sale_outlined,
+                                  size: 48, color: colors.textHint),
+                              const SizedBox(height: 12),
+                              Text('No medicines in cart',
+                                  style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.textSecondary)),
+                              const SizedBox(height: 4),
+                              Text('Search and add medicines above to bill',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 12, color: colors.textHint)),
+                            ],
+                          ),
+                        )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           itemCount: cartItems.length,
                           itemBuilder: (_, i) {
                             final med = cartItems[i]['med'] as Medicine;
                             final qty = cartItems[i]['qty'] as int;
+
                             return Container(
-                              margin: const EdgeInsets.only(bottom: 10),
+                              margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(color: colors.surfaceCard, borderRadius: BorderRadius.circular(12)),
-                              child: Row(children: [
-                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                                  Text(med.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: colors.textPrimary)),
-                                  const SizedBox(height: 4),
-                                  Text('₹${med.price.toStringAsFixed(2)} x $qty', style: GoogleFonts.inter(fontSize: 12, color: colors.textSecondary)),
-                                ])),
-                                Row(children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.remove_circle_outline),
-                                    onPressed: () => setState(() { qty > 1 ? _cart[med.id] = qty - 1 : _cart.remove(med.id); }),
+                              decoration: BoxDecoration(
+                                color: colors.surfaceCard,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(med.name,
+                                            style: GoogleFonts.inter(
+                                                fontWeight: FontWeight.w600,
+                                                color: colors.textPrimary)),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                            '₹${med.price.toStringAsFixed(2)} each',
+                                            style: GoogleFonts.inter(
+                                                fontSize: 11,
+                                                color: colors.textSecondary)),
+                                      ],
+                                    ),
                                   ),
-                                  Text('$qty', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: colors.textPrimary)),
-                                  IconButton(
-                                    icon: const Icon(Icons.add_circle_outline),
-                                    onPressed: () {
-                                      if (qty < med.stock) {
-                                        setState(() => _cart[med.id] = qty + 1);
-                                      } else {
-                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Not enough stock for ${med.name}')));
-                                      }
-                                    },
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                            Icons.remove_circle_outline,
+                                            size: 20),
+                                        onPressed: () => setState(() {
+                                          qty > 1
+                                              ? _cart[med.id] = qty - 1
+                                              : _cart.remove(med.id);
+                                        }),
+                                      ),
+                                      Text('$qty',
+                                          style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w700,
+                                              color: colors.textPrimary)),
+                                      IconButton(
+                                        icon: const Icon(
+                                            Icons.add_circle_outline,
+                                            size: 20),
+                                        onPressed: () {
+                                          if (qty < med.stock) {
+                                            setState(() => _cart[med.id] = qty + 1);
+                                          } else {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      'Not enough stock for ${med.name}')),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ],
                                   ),
-                                ]),
-                                const SizedBox(width: 8),
-                                Text('₹${(med.price * qty).toStringAsFixed(2)}', style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: colors.textPrimary)),
-                              ]),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '₹${(med.price * qty).toStringAsFixed(2)}',
+                                    style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w700,
+                                        color: colors.textPrimary),
+                                  ),
+                                ],
+                              ),
                             );
                           },
                         ),
                 ),
+
+                // Checkout Footer
                 Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: colors.surfaceCard, border: Border(top: BorderSide(color: colors.surfaceLight))),
-                  child: Row(children: [
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                      Text('Total Amount', style: GoogleFonts.inter(fontSize: 12, color: colors.textSecondary)),
-                      Text('₹${total.toStringAsFixed(2)}', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-                    ]),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed: cartItems.isEmpty ? null : () async {
-                        final db = ref.read(databaseServiceProvider);
-                        if (db == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Database session not available.')),
-                          );
-                          return;
-                        }
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceCard,
+                    border: Border(top: BorderSide(color: colors.surfaceLight)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Subtotal:',
+                              style: GoogleFonts.inter(
+                                  fontSize: 12, color: colors.textSecondary)),
+                          Text('₹${subtotal.toStringAsFixed(2)}',
+                              style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.textPrimary)),
+                        ],
+                      ),
+                      if (_billType == 'pakka') ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('GST (18%):',
+                                style: GoogleFonts.inter(
+                                    fontSize: 12, color: colors.textSecondary)),
+                            Text('₹${gstAmount.toStringAsFixed(2)}',
+                                style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.textPrimary)),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Total Amount',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: colors.textSecondary)),
+                              Text('₹${grandTotal.toStringAsFixed(2)}',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primary)),
+                            ],
+                          ),
+                          const Spacer(),
+                          ElevatedButton.icon(
+                            onPressed: (cartItems.isEmpty || _isProcessing)
+                                ? null
+                                : () async {
+                                    final db = ref.read(databaseServiceProvider);
+                                    if (db == null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Database session not available.')),
+                                      );
+                                      return;
+                                    }
 
-                        try {
-                          for (final item in cartItems) {
-                            final med = item['med'] as Medicine;
-                            final qty = item['qty'] as int;
-                            final sale = Sale(
-                              id: '',
-                              medicineId: med.id,
-                              medicineName: med.name,
-                              customerName: 'Walk-in',
-                              quantity: qty,
-                              unitPrice: med.price,
-                              totalPrice: med.price * qty,
-                              date: DateTime.now(),
-                            );
-                            await db.addSale(sale);
-                            await db.decrementStock(med.id, qty);
-                          }
+                                    setState(() => _isProcessing = true);
+                                    try {
+                                      final billNumber = DateTime.now()
+                                          .millisecondsSinceEpoch
+                                          .toString()
+                                          .substring(7);
+                                      final saleItems = cartItems.map((item) {
+                                        final med = item['med'] as Medicine;
+                                        final qty = item['qty'] as int;
+                                        return SaleItem(
+                                          medicineId: med.id,
+                                          medicineName: med.name,
+                                          quantity: qty,
+                                          unitPrice: med.price,
+                                          totalPrice: med.price * qty,
+                                        );
+                                      }).toList();
 
-                          if (mounted) {
-                            setState(() => _cart.clear());
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Sale processed and recorded successfully!')),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Failed to process sale: $e')),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      child: Text('Checkout', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
-                    ),
-                  ]),
+                                      final custName =
+                                          _customerCtrl.text.trim().isNotEmpty
+                                              ? _customerCtrl.text.trim()
+                                              : 'Walk-in';
+
+                                      final sale = Sale(
+                                        id: '',
+                                        billNo: billNumber,
+                                        billType: _billType,
+                                        medicineId: saleItems.first.medicineId,
+                                        medicineName:
+                                            saleItems.first.medicineName,
+                                        customerName: custName,
+                                        quantity: saleItems.fold(
+                                            0, (s, i) => s + i.quantity),
+                                        unitPrice: saleItems.first.unitPrice,
+                                        subtotal: subtotal,
+                                        taxAmount: gstAmount,
+                                        totalPrice: grandTotal,
+                                        items: saleItems,
+                                        date: DateTime.now(),
+                                      );
+
+                                      // 1. Record Sale in backend
+                                      await db.addSale(sale);
+
+                                      // 2. Decrement stock for all items
+                                      for (final item in saleItems) {
+                                        await db.decrementStock(
+                                            item.medicineId, item.quantity);
+                                      }
+
+                                      if (mounted) {
+                                        setState(() {
+                                          _cart.clear();
+                                          _customerCtrl.clear();
+                                        });
+
+                                        // 3. Show Instant Thermal Receipt Dialog
+                                        await BillReceiptDialog.show(
+                                          context,
+                                          sale: sale,
+                                          pharmacyName: profile?.pharmacyName ??
+                                              'PHARMADASH HEALTHCARE',
+                                          pharmacyAddress: profile != null
+                                              ? '${profile.area}, ${profile.city}'
+                                              : 'Dehradun, Selaqui',
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  'Failed to process sale: $e')),
+                                        );
+                                      }
+                                    } finally {
+                                      if (mounted) {
+                                        setState(() => _isProcessing = false);
+                                      }
+                                    }
+                                  },
+                            icon: _isProcessing
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Icon(Icons.receipt_long_rounded,
+                                    size: 18),
+                            label: Text(
+                              _billType == 'pakka'
+                                  ? 'Generate Pakka Bill'
+                                  : 'Generate Kaccha Bill',
+                              style: GoogleFonts.inter(
+                                  fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 18, vertical: 12),
+                              backgroundColor: _billType == 'pakka'
+                                  ? AppColors.primary
+                                  : AppColors.warning,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             );

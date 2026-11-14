@@ -7,7 +7,7 @@ class Medicine {
   final String category;
   final String manufacturer;
   final int stock;
-  final int reorderLevel;
+  final int reorderLevel; // min safe stock
   final double price;
   final double costPrice;
   final DateTime expiryDate;
@@ -27,6 +27,7 @@ class Medicine {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
+  int get minStock => reorderLevel;
   bool get isLowStock => stock <= reorderLevel;
   bool get isExpired => expiryDate.isBefore(DateTime.now());
   bool get isExpiringSoon =>
@@ -42,15 +43,19 @@ class Medicine {
       genericName: data['genericName'] ?? '',
       category: data['category'] ?? 'Other',
       manufacturer: data['manufacturer'] ?? '',
-      stock: data['stock'] ?? 0,
-      reorderLevel: data['reorderLevel'] ?? 10,
-      price: (data['price'] ?? 0.0).toDouble(),
-      costPrice: (data['costPrice'] ?? 0.0).toDouble(),
+      stock: ((data['stock'] ?? 0) as num).toInt(),
+      reorderLevel: ((data['reorderLevel'] ?? data['minStock'] ?? 10) as num).toInt(),
+      price: ((data['price'] ?? 0.0) as num).toDouble(),
+      costPrice: ((data['costPrice'] ?? 0.0) as num).toDouble(),
       expiryDate: data['expiryDate'] != null
-          ? (data['expiryDate'] as Timestamp).toDate()
+          ? (data['expiryDate'] is Timestamp
+              ? (data['expiryDate'] as Timestamp).toDate()
+              : DateTime.now().add(const Duration(days: 365)))
           : DateTime.now().add(const Duration(days: 365)),
       createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
+          ? (data['createdAt'] is Timestamp
+              ? (data['createdAt'] as Timestamp).toDate()
+              : DateTime.now())
           : DateTime.now(),
     );
   }
@@ -63,6 +68,7 @@ class Medicine {
       'manufacturer': manufacturer,
       'stock': stock,
       'reorderLevel': reorderLevel,
+      'minStock': reorderLevel,
       'price': price,
       'costPrice': costPrice,
       'expiryDate': Timestamp.fromDate(expiryDate),
@@ -70,18 +76,28 @@ class Medicine {
     };
   }
 
-  Medicine copyWith({int? stock}) {
+  Medicine copyWith({
+    String? name,
+    String? genericName,
+    String? category,
+    String? manufacturer,
+    int? stock,
+    int? reorderLevel,
+    double? price,
+    double? costPrice,
+    DateTime? expiryDate,
+  }) {
     return Medicine(
       id: id,
-      name: name,
-      genericName: genericName,
-      category: category,
-      manufacturer: manufacturer,
+      name: name ?? this.name,
+      genericName: genericName ?? this.genericName,
+      category: category ?? this.category,
+      manufacturer: manufacturer ?? this.manufacturer,
       stock: stock ?? this.stock,
-      reorderLevel: reorderLevel,
-      price: price,
-      costPrice: costPrice,
-      expiryDate: expiryDate,
+      reorderLevel: reorderLevel ?? this.reorderLevel,
+      price: price ?? this.price,
+      costPrice: costPrice ?? this.costPrice,
+      expiryDate: expiryDate ?? this.expiryDate,
       createdAt: createdAt,
     );
   }
