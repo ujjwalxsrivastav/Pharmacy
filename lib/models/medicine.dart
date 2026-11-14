@@ -12,6 +12,9 @@ class Medicine {
   final double costPrice;
   final String hsn;
   final int gstSlab; // 5, 12, or 18%
+  final String batchNo;
+  final bool rxRequired; // Schedule H / H1 prescription requirement
+  final String rackShelf; // Store physical location
   final DateTime expiryDate;
   final DateTime createdAt;
 
@@ -27,6 +30,9 @@ class Medicine {
     this.costPrice = 0.0,
     this.hsn = '3004',
     this.gstSlab = 12,
+    this.batchNo = '',
+    this.rxRequired = false,
+    this.rackShelf = '',
     required this.expiryDate,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
@@ -48,11 +54,15 @@ class Medicine {
       category: data['category'] ?? 'Other',
       manufacturer: data['manufacturer'] ?? '',
       stock: ((data['stock'] ?? 0) as num).toInt(),
-      reorderLevel: ((data['reorderLevel'] ?? data['minStock'] ?? 10) as num).toInt(),
+      reorderLevel:
+          ((data['reorderLevel'] ?? data['minStock'] ?? 10) as num).toInt(),
       price: ((data['price'] ?? 0.0) as num).toDouble(),
       costPrice: ((data['costPrice'] ?? 0.0) as num).toDouble(),
       hsn: (data['hsn'] ?? '3004').toString(),
       gstSlab: ((data['gstSlab'] ?? 12) as num).toInt(),
+      batchNo: (data['batchNo'] ?? '').toString(),
+      rxRequired: data['rxRequired'] == true,
+      rackShelf: (data['rackShelf'] ?? data['rack'] ?? '').toString(),
       expiryDate: data['expiryDate'] != null
           ? (data['expiryDate'] is Timestamp
               ? (data['expiryDate'] as Timestamp).toDate()
@@ -79,6 +89,9 @@ class Medicine {
       'costPrice': costPrice,
       'hsn': hsn,
       'gstSlab': gstSlab,
+      'batchNo': batchNo,
+      'rxRequired': rxRequired,
+      'rackShelf': rackShelf,
       'expiryDate': Timestamp.fromDate(expiryDate),
       'createdAt': Timestamp.fromDate(createdAt),
     };
@@ -95,6 +108,9 @@ class Medicine {
     double? costPrice,
     String? hsn,
     int? gstSlab,
+    String? batchNo,
+    bool? rxRequired,
+    String? rackShelf,
     DateTime? expiryDate,
   }) {
     return Medicine(
@@ -109,6 +125,9 @@ class Medicine {
       costPrice: costPrice ?? this.costPrice,
       hsn: hsn ?? this.hsn,
       gstSlab: gstSlab ?? this.gstSlab,
+      batchNo: batchNo ?? this.batchNo,
+      rxRequired: rxRequired ?? this.rxRequired,
+      rackShelf: rackShelf ?? this.rackShelf,
       expiryDate: expiryDate ?? this.expiryDate,
       createdAt: createdAt,
     );

@@ -5,6 +5,8 @@ import '../services/database_service.dart';
 import '../models/medicine.dart';
 import '../models/sale.dart';
 import '../models/pharmacy_profile.dart';
+import '../models/supplier.dart';
+import '../models/purchase_order.dart';
 import '../services/order_contract.dart';
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
@@ -86,4 +88,18 @@ final ordersStreamProvider = StreamProvider<List<KlinixyOrder>>((ref) {
 final pendingOrdersCountProvider = Provider<int>((ref) {
   final orders = ref.watch(ordersStreamProvider).valueOrNull ?? [];
   return orders.where((o) => o.isPlaced).length;
+});
+
+// ─── Suppliers Stream (P9 Inventory Depth) ────────────────────────────────────
+final suppliersStreamProvider = StreamProvider<List<Supplier>>((ref) {
+  final db = ref.watch(databaseServiceProvider);
+  if (db == null) return Stream.value([]);
+  return db.getSuppliersStream();
+});
+
+// ─── Purchase Orders Stream (P9 Inventory Depth) ──────────────────────────────
+final purchaseOrdersStreamProvider = StreamProvider<List<PurchaseOrder>>((ref) {
+  final db = ref.watch(databaseServiceProvider);
+  if (db == null) return Stream.value([]);
+  return db.getPurchaseOrdersStream();
 });

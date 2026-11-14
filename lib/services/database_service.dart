@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/medicine.dart';
 import '../models/sale.dart';
 import '../models/pharmacy_profile.dart';
+import '../models/supplier.dart';
+import '../models/purchase_order.dart';
 import '../providers/providers.dart';
 import 'order_contract.dart';
 
@@ -388,6 +390,150 @@ class DatabaseService {
           'by': byUid,
         }
       ]),
+    });
+  }
+
+  // ─── Suppliers (P9 Inventory Depth) ─────────────────────────────────────────
+  Stream<List<Supplier>> getSuppliersStream() {
+    return _rootPharmacyRef
+        .collection('suppliers')
+        .orderBy('name')
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => Supplier.fromDoc(d)).toList());
+  }
+
+  Future<void> addSupplier(Supplier supplier) async {
+    final docRef = _rootPharmacyRef.collection('suppliers').doc();
+    await docRef.set(supplier.toMap());
+  }
+
+  // ─── Purchase Orders (P9 Inventory Depth) ───────────────────────────────────
+  Stream<List<PurchaseOrder>> getPurchaseOrdersStream() {
+    return _rootPharmacyRef
+        .collection('purchaseOrders')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => PurchaseOrder.fromDoc(d)).toList());
+  }
+
+  Future<void> createPurchaseOrder(PurchaseOrder po) async {
+    final docRef = _rootPharmacyRef.collection('purchaseOrders').doc();
+    await docRef.set(po.toMap());
+  }
+
+  Future<void> receivePurchaseOrder({
+    required String poId,
+    required String byUid,
+  }) async {
+    final poRef = _rootPharmacyRef.collection('purchaseOrders').doc(poId);
+
+    await _db.runTransaction((transaction) async {
+      final poSnap = await transaction.get(poRef);
+      if (!poSnap.exists || poSnap.data() == null) {
+        throw Exception('Purchase order not found.');
+      }
+      final po = PurchaseOrder.fromDoc(poSnap);
+      if (po.isReceived) {
+        throw Exception('Purchase order is already received.');
+      }
+
+      // Increment stock for each item & update batch/expiry
+      for (final item in po.items) {
+        final stockRef = _rootPharmacyRef.collection('stock').doc(item.medicineId);
+        final nestedRef = _nestedPharmacyRef.collection('stock').doc(item.medicineId);
+
+        transaction.update(stockRef, {
+          'stock': FieldValue.increment(item.quantity),
+          'batchNo': item.batchNo,
+          'expiryDate': Timestamp.fromDate(item.expiryDate),
+          'costPrice': item.unitCost,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedBy': byUid,
+        });
+
+        transaction.update(nestedRef, {
+          'stock': FieldValue.increment(item.quantity),
+          'batchNo': item.batchNo,
+          'expiryDate': Timestamp.fromDate(item.expiryDate),
+          'costPrice': item.unitCost,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedBy': byUid,
+        });
+      }
+
+      // Mark PO as received
+      transaction.update(poRef, {
+        'status': 'received',
+        'receivedAt': FieldValue.serverTimestamp(),
+        'receivedBy': byUid,
+      });
+    });
+  }
+
+  // ─── Returns & Refunds (P9 Inventory Depth) ─────────────────────────────────
+  Future<void> processReturn({
+    required Sale originalSale,
+    required List<SaleItem> returnedItems,
+    required String reason,
+    required String byUid,
+  }) async {
+    if (returnedItems.isEmpty) {
+      throw Exception('No items selected for return.');
+    }
+
+    final refundSubtotal = returnedItems.fold<double>(
+        0, (sum, i) => sum + (i.unitPrice * i.quantity));
+    final refundTax = originalSale.isPakka
+        ? returnedItems.fold<double>(
+            0, (sum, i) => sum + (i.unitPrice * i.quantity * (i.gstSlab / 100.0)))
+        : 0.0;
+    final refundTotal = refundSubtotal + refundTax;
+
+    await _db.runTransaction((transaction) async {
+      // 1. Restock returned items
+      for (final item in returnedItems) {
+        final stockRef = _rootPharmacyRef.collection('stock').doc(item.medicineId);
+        final nestedRef = _nestedPharmacyRef.collection('stock').doc(item.medicineId);
+
+        transaction.update(stockRef, {
+          'stock': FieldValue.increment(item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedBy': byUid,
+        });
+
+        transaction.update(nestedRef, {
+          'stock': FieldValue.increment(item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedBy': byUid,
+        });
+      }
+
+      // 2. Create negative sale record for audit reconciliation
+      final refundRef = _rootPharmacyRef.collection('sales').doc();
+      final refundData = {
+        'billNo': 'REF-${originalSale.billNo}',
+        'originalBillNo': originalSale.billNo,
+        'billType': 'refund',
+        'customerName': originalSale.customerName,
+        'items': returnedItems.map((i) => i.toMap()).toList(),
+        'quantity': returnedItems.fold<int>(0, (sum, i) => sum + i.quantity),
+        'medicineName': returnedItems.first.medicineName,
+        'medicineId': returnedItems.first.medicineId,
+        'unitPrice': returnedItems.first.unitPrice,
+        'subtotal': -refundSubtotal,
+        'taxAmount': -refundTax,
+        'totalPrice': -refundTotal,
+        'date': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': byUid,
+        'reason': reason,
+      };
+
+      transaction.set(refundRef, refundData);
+      final nestedRefundRef = _nestedPharmacyRef.collection('sales').doc(refundRef.id);
+      transaction.set(nestedRefundRef, refundData);
     });
   }
 }

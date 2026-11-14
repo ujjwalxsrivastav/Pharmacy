@@ -18,9 +18,9 @@
 | **P5** | **Atomic Sale & Per-Pharmacy Counter** | 🟢 Complete | `f67dc43` | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
 | **P6** | **Real Thermal & PDF Printing** | 🟢 Complete | `f3617cc` | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
 | **P7** | **Itemized GST by HSN Slab** | 🟢 Complete | `6a636db` | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
-| **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | 🟢 Complete | `in-progress` | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
-| **P9** | **Inventory Depth (FEFO, Batches, PO)** | 🟡 Ready | Pending | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
-| **P10** | **Unified Analytics & Financial Reports** | ⚪ Pending | — | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
+| **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | 🟢 Complete | `a9a0410` | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
+| **P9** | **Inventory Depth (FEFO, Batches, PO)** | 🟢 Complete | `in-progress` | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
+| **P10** | **Unified Analytics & Financial Reports** | 🟡 Ready | Pending | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
 | **P11** | **UX Polish & Keyboard-First POS** | ⚪ Pending | — | Riverpod persistent cart, keyboard shortcuts (Enter/Ctrl+Enter/Esc), barcode scan. |
 | **P12** | **Klinixy Branding Alignment** | ⚪ Pending | — | Systematic branding across app title, headers, invoices, web metadata. |
 | **P13** | **Automated Tests & Quality Suite** | ⚪ Pending | — | Automated widget tests for POS maths, stock guards, and order states. |
@@ -139,3 +139,23 @@
   - Linked Orders directly to `DashboardScreen` (top header icon with live count badge + urgent alert banner when new orders are placed) and `AlertsScreen` (inbox shortcut button).
   - Added unit tests in `test/orders_contract_test.dart` verifying order serialization, status methods, and rejection reasons.
   - Verified `flutter analyze` passing with 0 issues and `flutter test` passing (6/6 tests green).
+
+### [P9] Inventory Depth (FEFO, Batches, Purchase Orders, Returns)
+- **Goal:** Implement enterprise pharmaceutical inventory controls: batch numbers, physical rack/shelf tracking, Schedule H prescription requirements, FEFO (First-Expired, First-Out) dispensing guards, complete supplier procurement workflows, and customer returns/refunds.
+- **Actions:**
+  - Extended `Medicine` model: added `batchNo`, `rackShelf`, and `rxRequired` (Schedule H/H1 flag) with backward-compatible Firestore decoders.
+  - Updated Add Medicine modal, Quick Add dialog, Edit Medicine dialog, and medicine details sheet to manage and display batch, shelf location, and prescription flags.
+  - Integrated FEFO & Expiration Guards in `CounterBillingScreen`:
+    - Blocks expired items outright from cart with explicit expiration date explanation.
+    - Warns cashier with a FEFO banner if an earlier-expiring batch of the formulation exists in stock.
+    - Highlights Schedule H/H1 prescription requirement.
+  - Created Supplier & Purchase Order architecture:
+    - Added `Supplier` (`lib/models/supplier.dart`) and `PurchaseOrder` (`lib/models/purchase_order.dart`) models.
+    - Created `PurchaseOrdersScreen` (`lib/screens/purchase_orders_screen.dart`) featuring two tabs: Purchase Orders and Suppliers Directory.
+    - Linked PO procurement directly from `InventoryScreen` header ("POs & Vendors" button).
+    - Added `receivePurchaseOrder` transaction in `DatabaseService`: atomically increments stock across root and nested paths while updating medicine batch and expiry details.
+  - Implemented Customer Returns & Refunds:
+    - Added `processReturn` in `DatabaseService`: transactional restock of returned items and generation of negative audit sale record (`REF-PH-...`) preserving historical audit integrity without deleting original sales.
+    - Added "Process Return / Refund" modal in `SalesScreen` allowing selection of original bill and return items.
+  - Created unit test suite `test/inventory_depth_test.dart` testing batch tracking, FEFO batch detection, and negative refund calculation (10/10 tests green).
+  - Verified `flutter analyze` passing with 0 issues.

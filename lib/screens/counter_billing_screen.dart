@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../models/medicine.dart';
@@ -217,20 +218,109 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
                       children: searchResults.map((med) {
                         return ListTile(
                           dense: true,
-                          title: Text(med.name,
-                              style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.textPrimary)),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(med.name,
+                                    style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w600,
+                                        color: med.isExpired
+                                            ? AppColors.error
+                                            : colors.textPrimary)),
+                              ),
+                              if (med.rxRequired)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  margin: const EdgeInsets.only(left: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accent
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text('Rx Req',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.accent)),
+                                ),
+                            ],
+                          ),
                           subtitle: Text(
-                              '₹${med.price.toStringAsFixed(2)} • Stock: ${med.stock}',
+                              med.isExpired
+                                  ? 'EXPIRED (${DateFormat('dd/MM/yy').format(med.expiryDate)}) — CANNOT DISPENSE'
+                                  : '₹${med.price.toStringAsFixed(2)} • Stock: ${med.stock}${med.batchNo.isNotEmpty ? " • Batch: ${med.batchNo}" : ""}',
                               style: GoogleFonts.inter(
-                                  fontSize: 11, color: colors.textSecondary)),
+                                  fontSize: 11,
+                                  fontWeight: med.isExpired
+                                      ? FontWeight.w700
+                                      : FontWeight.normal,
+                                  color: med.isExpired
+                                      ? AppColors.error
+                                      : colors.textSecondary)),
                           trailing: IconButton(
-                            icon: const Icon(Icons.add_circle,
-                                color: AppColors.primary),
-                            onPressed: med.stock <= 0
-                                ? null
+                            icon: Icon(
+                                med.isExpired
+                                    ? Icons.block
+                                    : Icons.add_circle,
+                                color: med.isExpired
+                                    ? AppColors.error
+                                    : AppColors.primary),
+                            onPressed: (med.stock <= 0 || med.isExpired)
+                                ? () {
+                                    if (med.isExpired) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              '${med.name} expired on ${DateFormat('dd MMM yyyy').format(med.expiryDate)}! Expired medicines cannot be dispensed.'),
+                                          backgroundColor: AppColors.error,
+                                        ),
+                                      );
+                                    }
+                                  }
                                 : () {
+                                    // FEFO Warning: check if an earlier expiring batch is available
+                                    final earlierBatch = medicines
+                                        .where((m) =>
+                                            m.id != med.id &&
+                                            m.stock > 0 &&
+                                            !m.isExpired &&
+                                            (m.name.toLowerCase() ==
+                                                    med.name.toLowerCase() ||
+                                                (m.genericName.isNotEmpty &&
+                                                    m.genericName
+                                                            .toLowerCase() ==
+                                                        med.genericName
+                                                            .toLowerCase())) &&
+                                            m.expiryDate
+                                                .isBefore(med.expiryDate))
+                                        .firstOrNull;
+
+                                    if (earlierBatch != null) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'FEFO Warning: Earlier expiring batch of ${earlierBatch.name} (Exp: ${DateFormat('dd/MM/yy').format(earlierBatch.expiryDate)}) exists!'),
+                                          backgroundColor: AppColors.warning,
+                                          duration: const Duration(seconds: 4),
+                                        ),
+                                      );
+                                    }
+
+                                    if (med.rxRequired) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Schedule H/H1 Warning: ${med.name} requires a doctor prescription.'),
+                                          backgroundColor: AppColors.accent,
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+
                                     final current = _cart[med.id] ?? 0;
                                     if (current < med.stock) {
                                       setState(() {
@@ -239,7 +329,8 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
                                         _searchQuery = '';
                                       });
                                     } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         SnackBar(
                                             content: Text(
                                                 'Not enough stock! Only ${med.stock} left.')),

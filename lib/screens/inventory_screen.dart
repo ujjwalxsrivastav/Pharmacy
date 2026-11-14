@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../services/database_service.dart';
 import '../models/medicine.dart';
+import 'purchase_orders_screen.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -77,6 +78,26 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         ],
                       ),
                       const Spacer(),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const PurchaseOrdersScreen()),
+                        ),
+                        icon: const Icon(Icons.receipt_long_outlined, size: 14),
+                        label: Text(
+                          'POs & Vendors',
+                          style: GoogleFonts.inter(
+                              fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
@@ -564,6 +585,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             _detailRow('Category', med.category, colors),
             _detailRow('HSN Code', med.hsn, colors),
             _detailRow('GST Slab', '${med.gstSlab}%', colors),
+            _detailRow('Batch Number', med.batchNo.isNotEmpty ? med.batchNo : '—', colors),
+            _detailRow('Rack / Shelf', med.rackShelf.isNotEmpty ? med.rackShelf : '—', colors),
+            _detailRow('Prescription (Rx)', med.rxRequired ? 'Schedule H/H1 Required' : 'Over The Counter (OTC)', colors),
             _detailRow('Manufacturer',
                 med.manufacturer.isEmpty ? '—' : med.manufacturer, colors),
             _detailRow('Stock', '${med.stock} units', colors),
@@ -621,9 +645,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final priceCtrl = TextEditingController(text: med.price.toString());
     final costCtrl = TextEditingController(text: med.costPrice.toString());
     final hsnCtrl = TextEditingController(text: med.hsn);
+    final batchCtrl = TextEditingController(text: med.batchNo);
+    final rackCtrl = TextEditingController(text: med.rackShelf);
     final minStockCtrl = TextEditingController(text: med.reorderLevel.toString());
     String category = med.category;
     int gstSlab = med.gstSlab;
+    bool rxRequired = med.rxRequired;
     DateTime expiry = med.expiryDate;
 
     final categories = [
@@ -726,6 +753,35 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: batchCtrl,
+                          decoration:
+                              const InputDecoration(labelText: 'Batch Number'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextFormField(
+                          controller: rackCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'Rack / Shelf location'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Prescription Required (Rx / Schedule H/H1)',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    value: rxRequired,
+                    activeThumbColor: AppColors.accent,
+                    onChanged: (val) => setDlgState(() => rxRequired = val),
+                  ),
+                  const SizedBox(height: 10),
                   TextFormField(
                     controller: minStockCtrl,
                     keyboardType: TextInputType.number,
@@ -776,6 +832,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     'costPrice': double.tryParse(costCtrl.text) ?? med.costPrice,
                     'hsn': hsnCtrl.text.trim().isNotEmpty ? hsnCtrl.text.trim() : '3004',
                     'gstSlab': gstSlab,
+                    'batchNo': batchCtrl.text.trim(),
+                    'rackShelf': rackCtrl.text.trim(),
+                    'rxRequired': rxRequired,
                     'reorderLevel':
                         int.tryParse(minStockCtrl.text) ?? med.reorderLevel,
                     'minStock':
@@ -861,7 +920,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final stockCtrl = TextEditingController(text: '50');
     final minStockCtrl = TextEditingController(text: '10');
     final hsnCtrl = TextEditingController(text: '3004');
+    final batchCtrl = TextEditingController();
+    final rackCtrl = TextEditingController();
     int gstSlab = 12;
+    bool rxRequired = false;
     String selectedCat = _selectedCategory != 'All' ? _selectedCategory : 'Tablets';
     DateTime expiryDate = DateTime.now().add(const Duration(days: 365));
     bool isSaving = false;
@@ -976,6 +1038,41 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           children: [
                             Expanded(
                               child: TextFormField(
+                                controller: batchCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Batch Number',
+                                  hintText: 'e.g. B2401',
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextFormField(
+                                controller: rackCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Rack / Shelf',
+                                  hintText: 'e.g. R2-S1',
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Prescription Required (Rx / Schedule H)',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          value: rxRequired,
+                          activeThumbColor: AppColors.accent,
+                          onChanged: (val) => setDlgState(() => rxRequired = val),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
                                 controller: minStockCtrl,
                                 keyboardType: TextInputType.number,
                                 decoration: const InputDecoration(
@@ -1043,6 +1140,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                             reorderLevel: int.tryParse(minStockCtrl.text.trim()) ?? 10,
                             hsn: hsnCtrl.text.trim().isNotEmpty ? hsnCtrl.text.trim() : '3004',
                             gstSlab: gstSlab,
+                            batchNo: batchCtrl.text.trim(),
+                            rackShelf: rackCtrl.text.trim(),
+                            rxRequired: rxRequired,
                             expiryDate: expiryDate,
                           );
 

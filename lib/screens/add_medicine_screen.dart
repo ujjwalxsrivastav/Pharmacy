@@ -22,7 +22,10 @@ class _AddMedicineScreenState extends ConsumerState<AddMedicineScreen> {
   final _stockCtrl = TextEditingController();
   final _reorderCtrl = TextEditingController();
   final _hsnCtrl = TextEditingController(text: '3004');
+  final _batchCtrl = TextEditingController();
+  final _rackCtrl = TextEditingController();
   int _gstSlab = 12;
+  bool _rxRequired = false;
   String _category = 'Other';
   DateTime _expiryDate = DateTime.now().add(const Duration(days: 365));
   bool _isLoading = false;
@@ -34,6 +37,8 @@ class _AddMedicineScreenState extends ConsumerState<AddMedicineScreen> {
     _nameCtrl.dispose(); _genericCtrl.dispose(); _manufacturerCtrl.dispose();
     _priceCtrl.dispose(); _costCtrl.dispose(); _stockCtrl.dispose(); _reorderCtrl.dispose();
     _hsnCtrl.dispose();
+    _batchCtrl.dispose();
+    _rackCtrl.dispose();
     super.dispose();
   }
 
@@ -120,6 +125,22 @@ class _AddMedicineScreenState extends ConsumerState<AddMedicineScreen> {
                 ),
               ),
             ]),
+            Row(children: [
+              Expanded(child: _buildField('Batch Number', _batchCtrl, colors)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildField('Rack / Shelf', _rackCtrl, colors)),
+            ]),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Schedule H/H1 Prescription Required (Rx)',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                value: _rxRequired,
+                activeThumbColor: AppColors.accent,
+                onChanged: (v) => setState(() => _rxRequired = v),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
@@ -169,6 +190,9 @@ class _AddMedicineScreenState extends ConsumerState<AddMedicineScreen> {
         costPrice: double.tryParse(_costCtrl.text) ?? 0,
         hsn: _hsnCtrl.text.trim().isNotEmpty ? _hsnCtrl.text.trim() : '3004',
         gstSlab: _gstSlab,
+        batchNo: _batchCtrl.text.trim(),
+        rackShelf: _rackCtrl.text.trim(),
+        rxRequired: _rxRequired,
         expiryDate: _expiryDate,
       );
       final db = ref.read(databaseServiceProvider);

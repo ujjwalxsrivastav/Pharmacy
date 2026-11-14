@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../models/sale.dart';
 import '../models/medicine.dart';
+import '../services/database_service.dart';
 import '../services/printer_service.dart';
 import '../widgets/bill_receipt_dialog.dart';
 import '../utils/csv_export.dart';
@@ -29,6 +30,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final salesAsync = ref.watch(salesStreamProvider);
     final medicinesAsync = ref.watch(medicinesStreamProvider);
     final profile = ref.watch(pharmacyProfileProvider).valueOrNull;
+    final db = ref.watch(databaseServiceProvider);
+    final authUser = ref.watch(authUserProvider).valueOrNull;
 
     return Scaffold(
       body: SafeArea(
@@ -190,6 +193,35 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showReturnRefundDialog(
+                              context,
+                              allSales,
+                              db,
+                              authUser?.uid ?? '',
+                            ),
+                            icon: const Icon(Icons.assignment_return_outlined,
+                                size: 18, color: AppColors.warning),
+                            label: Text(
+                              'Process Return / Refund (Restock & Ledger Credit)',
+                              style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.warning),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: BorderSide(
+                                  color: AppColors.warning
+                                      .withValues(alpha: 0.5)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 20),
 
@@ -1000,6 +1032,200 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _showReturnRefundDialog(
+    BuildContext context,
+    List<Sale> allSales,
+    DatabaseService? db,
+    String uid,
+  ) {
+    final validSales = allSales
+        .where((s) => s.billType != 'refund' && s.totalPrice > 0)
+        .toList();
+    if (validSales.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No completed sales found to refund against.')),
+      );
+      return;
+    }
+
+    Sale? selectedSale;
+    final Map<String, int> returnQuantities = {};
+    final reasonCtrl = TextEditingController(text: 'Customer return');
+
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: Text(
+            'Process Customer Return & Refund',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16),
+          ),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Select the original Bill Number to process return:',
+                    style: GoogleFonts.inter(fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    decoration:
+                        const InputDecoration(labelText: 'Original Bill *'),
+                    items: validSales
+                        .take(20)
+                        .map((s) => DropdownMenuItem(
+                              value: s.billNo,
+                              child: Text(
+                                  '#${s.billNo} — ₹${s.totalPrice.toStringAsFixed(2)} (${s.customerName})'),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      setDlgState(() {
+                        selectedSale =
+                            validSales.firstWhere((s) => s.billNo == val);
+                        returnQuantities.clear();
+                        for (final item in selectedSale!.items) {
+                          returnQuantities[item.medicineId] = item.quantity;
+                        }
+                      });
+                    },
+                  ),
+                  if (selectedSale != null) ...[
+                    const SizedBox(height: 14),
+                    const Divider(),
+                    Text('Select Items to Return:',
+                        style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w700, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    ...selectedSale!.items.map((item) {
+                      final currentQty =
+                          returnQuantities[item.medicineId] ?? 0;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item.medicineName} (Max: ${item.quantity})',
+                                style: GoogleFonts.inter(fontSize: 12),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline,
+                                  size: 20),
+                              onPressed: currentQty > 0
+                                  ? () => setDlgState(() =>
+                                      returnQuantities[item.medicineId] =
+                                          currentQty - 1)
+                                  : null,
+                            ),
+                            Text('$currentQty',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline,
+                                  size: 20),
+                              onPressed: currentQty < item.quantity
+                                  ? () => setDlgState(() =>
+                                      returnQuantities[item.medicineId] =
+                                          currentQty + 1)
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: reasonCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Reason for Return *',
+                        hintText:
+                            'e.g. Prescribed dosage changed by physician',
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: selectedSale == null ||
+                      returnQuantities.values.every((q) => q == 0)
+                  ? null
+                  : () async {
+                      if (db == null) return;
+                      final itemsToReturn = <SaleItem>[];
+                      for (final item in selectedSale!.items) {
+                        final q = returnQuantities[item.medicineId] ?? 0;
+                        if (q > 0) {
+                          itemsToReturn.add(SaleItem(
+                            medicineId: item.medicineId,
+                            medicineName: item.medicineName,
+                            quantity: q,
+                            unitPrice: item.unitPrice,
+                            totalPrice: item.unitPrice * q,
+                            hsn: item.hsn,
+                            gstSlab: item.gstSlab,
+                            taxAmount: selectedSale!.isPakka
+                                ? (item.unitPrice *
+                                    q *
+                                    (item.gstSlab / 100.0))
+                                : 0.0,
+                          ));
+                        }
+                      }
+
+                      Navigator.pop(dlgCtx);
+                      try {
+                        await db.processReturn(
+                          originalSale: selectedSale!,
+                          returnedItems: itemsToReturn,
+                          reason: reasonCtrl.text.trim(),
+                          byUid: uid,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Refund processed! Stock restocked and ledger updated.'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Refund failed: $e'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: const Text('Confirm Return & Restock'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
