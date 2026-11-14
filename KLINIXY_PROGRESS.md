@@ -15,9 +15,9 @@
 | **P2** | **Pharmacy Location (GeoPoint + UI)** | 🟢 Complete | `23fd1d9` | GeoPoint coords, address, phone, isOpen toggle, delivery radius, geolocator GPS. |
 | **P3** | **Auth & Identity Hardening** | 🟢 Complete | `a21905e` | Single source `users/{uid}`, explicit un-onboarded state, forgot-password reset, reachable logout. |
 | **P4** | **Firestore Scoped Security Rules** | 🟢 Complete | `a0ebe30` | Per-pharmacy rules file in repo (rules file only, not deployed), read/write protection. |
-| **P5** | **Atomic Sale & Per-Pharmacy Counter** | 🟢 Complete | `in-progress` | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
-| **P6** | **Real Thermal & PDF Printing** | 🟡 Ready | Pending | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
-| **P7** | **Itemized GST by HSN Slab** | ⚪ Pending | — | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
+| **P5** | **Atomic Sale & Per-Pharmacy Counter** | 🟢 Complete | `f67dc43` | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
+| **P6** | **Real Thermal & PDF Printing** | 🟢 Complete | `in-progress` | Real PDF generation & 80mm thermal receipt printing via `printing` package. |
+| **P7** | **Itemized GST by HSN Slab** | 🟡 Ready | Pending | Per-medicine HSN + GST slabs (5/12/18%), CGST+SGST intra-state split on invoice. |
 | **P8** | **Orders Inbox (Klinixy Quick-Commerce)** | ⚪ Pending | — | Live listener for `orders` collection, new order badge, Accept/Reject/Pack workflow. |
 | **P9** | **Inventory Depth (FEFO, Batches, PO)** | ⚪ Pending | — | Batch numbers, FEFO dispensing guard, Purchase Orders, Returns/Refunds. |
 | **P10** | **Unified Analytics & Financial Reports** | ⚪ Pending | — | Date presets + custom range picker, 4 KPIs, Peak Hours, Excel/CSV multi-export. |
@@ -94,3 +94,15 @@
     - Creates sale document in root and nested subcollections with server `Timestamp` and `updatedBy`.
   - Replaced legacy sequential loop in `CounterBillingScreen` with single atomic invocation.
   - Verified `flutter analyze` 0 issues and `flutter test` green.
+
+### [P6] Real Thermal & PDF Printing
+- **Goal:** Replace fake success SnackBars with real document generation and printing for 80mm thermal receipts and A4 financial reports.
+- **Actions:**
+  - Created `PrinterService` in `lib/services/printer_service.dart`:
+    - `generateReceiptBytes` & `printReceipt`: formats clean 80mm thermal roll PDF receipts with store name, address, profile GSTIN, phone, customer name, sequential bill number, itemized rates/totals, subtotal, CGST/SGST tax split, and grand total.
+    - `generateSalesReportBytes` & `printSalesReport`: generates comprehensive A4 financial reports with executive KPI summary table (revenue, GST, transactions count, avg value) and transaction breakdowns.
+  - Completely removed fake success SnackBars in `BillReceiptDialog` and `SalesScreen`.
+  - Replaced hardcoded `GSTIN: 27AABCP1234F1Z5` with the authenticated pharmacy's live profile `gstin`.
+  - Wired real `Printing.layoutPdf` into POS billing dialog, sales transaction receipts, and financial report print buttons.
+  - Resolved `image`/`archive` transitive dependency incompatibility via dependency override.
+  - Verified `flutter analyze` passing with 0 issues and `flutter test` passing with 0 failures.

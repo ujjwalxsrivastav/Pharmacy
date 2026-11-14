@@ -467,10 +467,12 @@ class _CounterBillingScreenState extends ConsumerState<CounterBillingScreen> {
                                           context,
                                           sale: completedSale,
                                           pharmacyName: profile?.pharmacyName ??
-                                              'PHARMADASH HEALTHCARE',
+                                              'Klinixy Pharmacy',
                                           pharmacyAddress: profile != null
                                               ? '${profile.area}, ${profile.city}'
                                               : 'Dehradun, Selaqui',
+                                          gstin: profile?.gstin,
+                                          phone: profile?.phone,
                                         );
                                       }
                                     } catch (e) {

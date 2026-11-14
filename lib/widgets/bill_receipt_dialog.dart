@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/sale.dart';
+import '../services/printer_service.dart';
 import '../theme/app_theme.dart';
 
 class BillReceiptDialog extends StatelessWidget {
   final Sale sale;
   final String pharmacyName;
   final String pharmacyAddress;
+  final String? gstin;
+  final String? phone;
 
   const BillReceiptDialog({
     super.key,
     required this.sale,
-    this.pharmacyName = 'PHARMADASH HEALTHCARE',
+    this.pharmacyName = 'Klinixy Pharmacy',
     this.pharmacyAddress = 'Dehradun, Selaqui',
+    this.gstin,
+    this.phone,
   });
 
   static Future<void> show(
@@ -21,25 +26,48 @@ class BillReceiptDialog extends StatelessWidget {
     required Sale sale,
     String? pharmacyName,
     String? pharmacyAddress,
+    String? gstin,
+    String? phone,
   }) {
     return showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => BillReceiptDialog(
         sale: sale,
-        pharmacyName: pharmacyName ?? 'PHARMADASH HEALTHCARE',
+        pharmacyName: pharmacyName ?? 'Klinixy Pharmacy',
         pharmacyAddress: pharmacyAddress ?? 'Dehradun, Selaqui',
+        gstin: gstin,
+        phone: phone,
       ),
     );
   }
 
-  static void printDocument(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Document formatted and sent to printer successfully!'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+  static Future<void> printDocument(
+    BuildContext context, {
+    required Sale sale,
+    String? pharmacyName,
+    String? pharmacyAddress,
+    String? gstin,
+    String? phone,
+  }) async {
+    try {
+      await PrinterService.printReceipt(
+        sale: sale,
+        pharmacyName: pharmacyName ?? 'Klinixy Pharmacy',
+        pharmacyAddress: pharmacyAddress ?? 'Dehradun, Selaqui',
+        gstin: gstin,
+        phone: phone,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Print error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -113,10 +141,10 @@ class BillReceiptDialog extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (sale.isPakka) ...[
+                    if (sale.isPakka && (gstin?.trim().isNotEmpty ?? false)) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'GSTIN: 27AABCP1234F1Z5',
+                        'GSTIN: ${gstin!.trim()}',
                         style: GoogleFonts.robotoMono(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
@@ -338,15 +366,15 @@ class BillReceiptDialog extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'Receipt sent to thermal printer successfully!'),
-                            backgroundColor: AppColors.success,
-                          ),
+                      onPressed: () async {
+                        await BillReceiptDialog.printDocument(
+                          context,
+                          sale: sale,
+                          pharmacyName: pharmacyName,
+                          pharmacyAddress: pharmacyAddress,
+                          gstin: gstin,
+                          phone: phone,
                         );
-                        Navigator.pop(context);
                       },
                       icon: const Icon(Icons.print_rounded, size: 18),
                       label: const Text('Print'),

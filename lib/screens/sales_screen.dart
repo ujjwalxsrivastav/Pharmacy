@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../models/sale.dart';
 import '../models/medicine.dart';
+import '../services/printer_service.dart';
 import '../widgets/bill_receipt_dialog.dart';
 import '../utils/csv_export.dart';
 
@@ -700,8 +701,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             context: context,
             builder: (_) => BillReceiptDialog(
               sale: sale,
-              pharmacyName: profile?.pharmacyName ?? 'Test',
+              pharmacyName: profile?.pharmacyName ?? 'Klinixy Pharmacy',
               pharmacyAddress: '${profile?.area ?? "Selaqui"}, ${profile?.city ?? "Dehradun"}',
+              gstin: profile?.gstin,
+              phone: profile?.phone,
             ),
           );
         },
@@ -964,9 +967,28 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               child: const Text('Close'),
             ),
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(ctx);
-                BillReceiptDialog.printDocument(context);
+                try {
+                  await PrinterService.printSalesReport(
+                    sales: sales,
+                    rangeLabel: _selectedRange,
+                    pharmacyName: profile?.pharmacyName ?? 'Klinixy Pharmacy',
+                    pharmacyAddress: profile != null
+                        ? '${profile.area}, ${profile.city}'
+                        : 'Dehradun, Selaqui',
+                    gstin: profile?.gstin,
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Print error: $e'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
               },
               icon: const Icon(Icons.print, size: 16),
               label: const Text('Print Report'),
