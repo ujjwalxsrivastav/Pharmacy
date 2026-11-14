@@ -10,9 +10,9 @@
 
 | Phase | Title | Status | Commit | Verification Notes |
 |:---|:---|:---:|:---:|:---|
-| **P0** | **Baseline + Cleanup** | 🟢 Complete | `in-progress` | `flutter analyze` 0 issues, smoke test green, stray HTML moved, README rewritten. |
-| **P1** | **Reconcile Repo vs Live UI** | 🟡 Ready | Pending | Unified 4/5 tab navigation, Reports banner link, category chips, Add Medicine sync. |
-| **P2** | **Pharmacy Location (GeoPoint + UI)** | ⚪ Pending | — | GeoPoint coords, address, phone, isOpen toggle, delivery radius, geolocator GPS. |
+| **P0** | **Baseline + Cleanup** | 🟢 Complete | `a360050` | `flutter analyze` 0 issues, smoke test green, stray HTML moved, README rewritten. |
+| **P1** | **Reconcile Repo vs Live UI** | 🟢 Complete | `in-progress` | 5 tabs kept, Analytics banner linked, 15 live category chips added, modal Add Medicine, forgot-password flow. |
+| **P2** | **Pharmacy Location (GeoPoint + UI)** | 🟡 Ready | Pending | GeoPoint coords, address, phone, isOpen toggle, delivery radius, geolocator GPS. |
 | **P3** | **Auth & Identity Hardening** | ⚪ Pending | — | Canonical `users/{uid}.pharmacyId`, forgot-password reset email, reachable logout. |
 | **P4** | **Firestore Scoped Security Rules** | ⚪ Pending | — | Per-pharmacy rules file in repo (not deployed), read/write protection. |
 | **P5** | **Atomic Sale & Per-Pharmacy Counter** | ⚪ Pending | — | Firestore transaction: sale + stock decrement + `PH-YYYY-####` sequential bill no. |
@@ -38,3 +38,13 @@
   - Replaced failing default counter test in `test/widget_test.dart` with a real `ProviderScope` smoke test that tests `PharmaDashApp` booting to `LoginScreen`.
   - Completely rewritten `README.md` with setup guides, tab map, and architectural summary.
   - Verified `flutter test` passing with 0 failures and `flutter analyze` passing with 0 issues.
+
+### [P1] Reconcile Repo vs Live UI
+- **Goal:** Reconcile navigation, category chips, Add Medicine modal, and forgot-password link with live site §2.
+- **Actions:**
+  - Retained 5-tab bottom navigation with live Dashboard banner ("Analytics & Reports →") linking to Tab 3.
+  - Connected 4 Dashboard stat cards to their respective tabs (Revenue → Billing, Products → Inventory, Alerts → Alerts).
+  - Added full set of 15 horizontally scrollable live category chips in `InventoryScreen`.
+  - Added in-page modal dialog for "+ Add Medicine" with fields: Name, Category, Price (₹), Initial Stock, Min Safe Stock, and Expiry Date.
+  - Added "Forgot password?" flow on `LoginScreen` powered by `sendPasswordResetEmail`.
+  - Verified `flutter analyze` passing with 0 issues and `flutter test` green.

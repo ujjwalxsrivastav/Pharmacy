@@ -6,7 +6,6 @@ import '../theme/app_theme.dart';
 import '../providers/providers.dart';
 import '../services/database_service.dart';
 import '../models/medicine.dart';
-import 'add_medicine_screen.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -16,6 +15,25 @@ class InventoryScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
+  String _selectedCategory = 'All';
+  static const List<String> _categoryChips = [
+    'All',
+    'Tablets',
+    'Capsules',
+    'Pain Relief',
+    'Antibiotics',
+    'Allergy',
+    'Diabetes',
+    'Syrups',
+    'Injections',
+    'Ointments',
+    'Drops',
+    'Inhalers',
+    'Vaccines',
+    'Herbal',
+    'Supplements',
+  ];
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
@@ -27,9 +45,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         child: medicinesAsync.when(
           data: (medicines) {
             final filtered = medicines.where((m) {
-              return m.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+              final matchesQuery = searchQuery.isEmpty ||
+                  m.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
                   m.genericName.toLowerCase().contains(searchQuery.toLowerCase()) ||
                   m.category.toLowerCase().contains(searchQuery.toLowerCase());
+              final matchesCategory = _selectedCategory == 'All' ||
+                  m.category.toLowerCase() == _selectedCategory.toLowerCase() ||
+                  m.name.toLowerCase().contains(_selectedCategory.toLowerCase());
+              return matchesQuery && matchesCategory;
             }).toList();
 
             return Column(
@@ -89,6 +112,40 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 ),
                 const SizedBox(height: 12),
 
+                // 15 Live Category Chips
+                SizedBox(
+                  height: 38,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _categoryChips.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, idx) {
+                      final cat = _categoryChips[idx];
+                      final isSelected = _selectedCategory == cat;
+                      return ChoiceChip(
+                        label: Text(cat),
+                        selected: isSelected,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: colors.surfaceLight,
+                        labelStyle: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected ? Colors.white : colors.textSecondary,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(
+                            color: isSelected ? AppColors.primary : Colors.transparent,
+                          ),
+                        ),
+                        onSelected: (_) => setState(() => _selectedCategory = cat),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+
                 // Medicines List
                 Expanded(
                   child: filtered.isEmpty
@@ -125,8 +182,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-            context, MaterialPageRoute(builder: (_) => const AddMedicineScreen())),
+        onPressed: () => _showQuickAddMedicineDialog(context),
         icon: const Icon(Icons.add),
         label: Text('Add Medicine',
             style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
@@ -763,6 +819,195 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 fontWeight: FontWeight.w600,
                 color: colors.textPrimary)),
       ]),
+    );
+  }
+
+  void _showQuickAddMedicineDialog(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    final stockCtrl = TextEditingController(text: '50');
+    final minStockCtrl = TextEditingController(text: '10');
+    String selectedCat = _selectedCategory != 'All' ? _selectedCategory : 'Tablets';
+    DateTime expiryDate = DateTime.now().add(const Duration(days: 365));
+    bool isSaving = false;
+
+    final categories = _categoryChips.where((c) => c != 'All').toList();
+
+    showDialog(
+      context: context,
+      builder: (dlgCtx) {
+        return StatefulBuilder(
+          builder: (context, setDlgState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text('Add Medicine',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18)),
+              content: SizedBox(
+                width: 420,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormField(
+                          controller: nameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Medicine Name *',
+                            hintText: 'e.g. Paracetamol 500mg',
+                            isDense: true,
+                          ),
+                          validator: (v) =>
+                              v == null || v.trim().isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedCat,
+                          decoration: const InputDecoration(
+                            labelText: 'Category *',
+                            isDense: true,
+                          ),
+                          items: categories
+                              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                              .toList(),
+                          onChanged: (v) => setDlgState(() => selectedCat = v!),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: priceCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  labelText: 'Price (₹) *',
+                                  hintText: '0.00',
+                                  isDense: true,
+                                ),
+                                validator: (v) =>
+                                    v == null || double.tryParse(v.trim()) == null ? 'Valid price' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextFormField(
+                                controller: stockCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Initial Stock *',
+                                  hintText: '0',
+                                  isDense: true,
+                                ),
+                                validator: (v) =>
+                                    v == null || int.tryParse(v.trim()) == null ? 'Valid stock' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: minStockCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Min Safe Stock',
+                                  hintText: '10',
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: expiryDate,
+                                    firstDate: DateTime.now(),
+                                    lastDate: DateTime.now().add(const Duration(days: 3650)),
+                                  );
+                                  if (picked != null) {
+                                    setDlgState(() => expiryDate = picked);
+                                  }
+                                },
+                                child: InputDecorator(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Expiry Date',
+                                    isDense: true,
+                                    suffixIcon: Icon(Icons.calendar_today, size: 16),
+                                  ),
+                                  child: Text(
+                                    DateFormat('dd MMM yyyy').format(expiryDate),
+                                    style: GoogleFonts.inter(fontSize: 13),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(dlgCtx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDlgState(() => isSaving = true);
+
+                          final db = ref.read(databaseServiceProvider);
+                          if (db == null) return;
+
+                          final medicine = Medicine(
+                            id: '',
+                            name: nameCtrl.text.trim(),
+                            category: selectedCat,
+                            price: double.parse(priceCtrl.text.trim()),
+                            stock: int.parse(stockCtrl.text.trim()),
+                            reorderLevel: int.tryParse(minStockCtrl.text.trim()) ?? 10,
+                            expiryDate: expiryDate,
+                          );
+
+                          await db.addMedicine(medicine);
+
+                          if (dlgCtx.mounted) {
+                            Navigator.pop(dlgCtx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Added ${nameCtrl.text.trim()} to inventory!'),
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

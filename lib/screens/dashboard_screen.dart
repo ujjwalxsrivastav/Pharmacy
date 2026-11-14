@@ -115,7 +115,7 @@ class DashboardScreen extends ConsumerWidget {
 
                     // Quick Action Banner
                     GestureDetector(
-                      onTap: () => ref.read(selectedTabProvider.notifier).set(2),
+                      onTap: () => ref.read(selectedTabProvider.notifier).set(3),
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -128,7 +128,7 @@ class DashboardScreen extends ConsumerWidget {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-                              child: const Icon(Icons.point_of_sale_rounded, color: Colors.white, size: 28),
+                              child: const Icon(Icons.analytics_outlined, color: Colors.white, size: 28),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -136,9 +136,9 @@ class DashboardScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('Start Counter Billing', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                                  Text('Analytics & Reports', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
                                   const SizedBox(height: 4),
-                                  Text('Process walk-in sales instantly', style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
+                                  Text('View peak sales hours, top products & custom metrics', style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
                                 ],
                               ),
                             ),
@@ -154,10 +154,22 @@ class DashboardScreen extends ConsumerWidget {
                       crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 1.15,
                       shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        GlassStatCard(title: "Today's Revenue", value: '₹${NumberFormat('#,##0').format(todayRevenue)}', subtitle: '${todaySales.length} orders today', icon: Icons.trending_up_rounded, gradient: AppColors.primaryGradient),
-                        GlassStatCard(title: 'Total Products', value: '${medicines.length}', subtitle: 'In inventory', icon: Icons.shopping_bag_rounded, gradient: AppColors.coolGradient),
-                        GlassStatCard(title: 'Low Stock Items', value: '$lowStock', subtitle: 'Needs reorder', icon: Icons.warning_amber_rounded, gradient: AppColors.warmGradient),
-                        GlassStatCard(title: 'Expiring Soon', value: '$expiring', subtitle: 'Within 30 days', icon: Icons.timer_outlined, gradient: AppColors.accentGradient),
+                        GestureDetector(
+                          onTap: () => ref.read(selectedTabProvider.notifier).set(2),
+                          child: GlassStatCard(title: "Today's Revenue", value: '₹${NumberFormat('#,##0').format(todayRevenue)}', subtitle: '${todaySales.length} orders today', icon: Icons.trending_up_rounded, gradient: AppColors.primaryGradient),
+                        ),
+                        GestureDetector(
+                          onTap: () => ref.read(selectedTabProvider.notifier).set(1),
+                          child: GlassStatCard(title: 'Total Products', value: '${medicines.length}', subtitle: 'In inventory', icon: Icons.shopping_bag_rounded, gradient: AppColors.coolGradient),
+                        ),
+                        GestureDetector(
+                          onTap: () => ref.read(selectedTabProvider.notifier).set(4),
+                          child: GlassStatCard(title: 'Low Stock Items', value: '$lowStock', subtitle: 'Needs reorder', icon: Icons.warning_amber_rounded, gradient: AppColors.warmGradient),
+                        ),
+                        GestureDetector(
+                          onTap: () => ref.read(selectedTabProvider.notifier).set(4),
+                          child: GlassStatCard(title: 'Expiring Soon', value: '$expiring', subtitle: 'Within 30 days', icon: Icons.timer_outlined, gradient: AppColors.accentGradient),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
