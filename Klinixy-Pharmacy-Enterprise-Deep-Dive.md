@@ -1,3 +1,11 @@
+# HANDOVER NOTE (Completed: 14 Nov 2026 — Antigravity)
+- **Status:** All enterprise phases P0 through P14 fully executed, verified, and committed.
+- **What is done:** Clean baseline (P0); UI reconciliation & 15 categories (P1); GPS & manual location picker (P2); identity hardening via users/{uid} (P3); scoped Firestore security rules (P4); atomic sale transaction & PH-YYYY-#### bill counters (P5); real 80mm thermal & PDF printing via `printing`/`pdf` (P6); itemized intra-state CGST+SGST by HSN/GST slabs (P7); quick-commerce orders inbox with accept/reject/pack workflows (P8); FEFO batch controls, physical rack/shelf tracking, purchase orders, & customer refunds (P9); unified reports surface with custom date range, 4 KPIs, 24h peak hours, & multi-section CSV exports (P10); keyboard-first POS, mobile_scanner barcode scanning, persistent Riverpod cart, & skeleton loaders (P11); systematic rebranding to "Klinixy Pharmacy" (P12); automated test suite (26/26 tests green) (P13); and final demo seeder & end-to-end QA checklist (P14).
+- **What is deliberately not done:** `firestore.rules` has NOT been deployed to the live Firebase project (Maalik/DevOps deploys); external customer/rider apps remain decoupled behind `order_contract.dart`; and live production `Test` document was not mutated with demo data (seeder utility `DemoDataSeeder` handles on-demand seeding cleanly).
+- **Next Decision for Maalik:** (1) Review and deploy `firestore.rules` to Firebase project `klinixy-68521` via `firebase deploy --only firestore:rules`; (2) Connect the shared Rider and Customer app order emitters to the Firestore `orders` contract.
+
+---
+
 # Klinixy Pharmacy — Enterprise Deep-Dive + Gemini Execution Pack
 
 **Repo:** https://github.com/ujjwalxsrivastav/pharmaaa.git — package `pharmacist_dashboard`, app name **PharmaDash**
