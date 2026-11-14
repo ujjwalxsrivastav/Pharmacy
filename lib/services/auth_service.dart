@@ -47,8 +47,6 @@ class AuthService {
 
     final batch = _db.batch();
 
-    // 1. Full hierarchical path:
-    //    cities/{city}/areas/{area}/pharmacies/{uid}
     final pharmacyRef = _db
         .collection('cities')
         .doc(cityKey)
@@ -58,8 +56,6 @@ class AuthService {
         .doc(uid);
     batch.set(pharmacyRef, profile.toMap());
 
-    // 2. Index doc for fast lookup on login:
-    //    pharmacyIndex/{uid} → { city, area }
     final indexRef = _db.collection('pharmacyIndex').doc(uid);
     batch.set(indexRef, {
       'city': cityKey,
@@ -72,8 +68,9 @@ class AuthService {
     return credential;
   }
 
-  // ─── Resolve path from index or fallback search ────────────────────────────
-  Future<Map<String, String>?> resolvePharmacyPath(String uid) async {
+  // ─── Auto-Resolve or Auto-Migrate Existing Pharmacy ────────────────────────
+  Future<Map<String, String>> resolvePharmacyPath(String uid, String email) async {
+    // 1. Try reading pharmacyIndex
     try {
       final snap = await _db.collection('pharmacyIndex').doc(uid).get();
       if (snap.exists && snap.data() != null) {
@@ -82,30 +79,23 @@ class AuthService {
           return {'city': d['city'] as String, 'area': d['area'] as String};
         }
       }
-    } catch (e) {
-      // Continue to search fallback
-    }
+    } catch (_) {}
 
-    // Fallback: search collectionGroup('pharmacies')
+    // 2. Try searching cities collection group
     try {
-      final groupSnap = await _db
-          .collectionGroup('pharmacies')
-          .get();
-
+      final groupSnap = await _db.collectionGroup('pharmacies').get();
       for (final doc in groupSnap.docs) {
         if (doc.id == uid) {
-          // doc path: cities/{city}/areas/{area}/pharmacies/{uid}
           final parts = doc.reference.path.split('/');
           if (parts.length >= 4 && parts[0] == 'cities' && parts[2] == 'areas') {
             final city = parts[1];
             final area = parts[3];
-            // Cache back into pharmacyIndex for fast future logins
             try {
               await _db.collection('pharmacyIndex').doc(uid).set({
                 'city': city,
                 'area': area,
-                'pharmacyName': doc.data()['pharmacyName'] ?? '',
-                'email': doc.data()['email'] ?? '',
+                'pharmacyName': doc.data()['pharmacyName'] ?? 'Pharmacy',
+                'email': email,
               }, SetOptions(merge: true));
             } catch (_) {}
             return {'city': city, 'area': area};
@@ -114,7 +104,79 @@ class AuthService {
       }
     } catch (_) {}
 
-    return null;
+    // 3. Try root pharmacies/{uid} collection
+    try {
+      final rootSnap = await _db.collection('pharmacies').doc(uid).get();
+      if (rootSnap.exists && rootSnap.data() != null) {
+        final d = rootSnap.data()!;
+        final city = PharmacyProfile.toKey(d['city'] ?? 'default_city');
+        final area = PharmacyProfile.toKey(d['area'] ?? 'default_area');
+        final name = d['pharmacyName'] ?? 'Pharmacy';
+        final handler = d['handlerName'] ?? 'Pharmacist';
+
+        // Migrate to cities > areas > pharmacies > uid
+        await _migrateToHierarchy(uid, email, city, area, name, handler);
+        return {'city': city, 'area': area};
+      }
+    } catch (_) {}
+
+    // 4. Default auto-initialization for existing legacy account
+    // So the user doesn't get blocked and can immediately access everything!
+    final defaultCity = 'default_city';
+    final defaultArea = 'default_area';
+    final defaultName = email.split('@').first.toUpperCase();
+    await _migrateToHierarchy(uid, email, defaultCity, defaultArea, defaultName, 'Pharmacist');
+
+    return {'city': defaultCity, 'area': defaultArea};
+  }
+
+  Future<void> _migrateToHierarchy(
+    String uid,
+    String email,
+    String city,
+    String area,
+    String pharmacyName,
+    String handlerName,
+  ) async {
+    try {
+      final profile = PharmacyProfile(
+        uid: uid,
+        email: email,
+        pharmacyName: pharmacyName,
+        handlerName: handlerName,
+        city: city,
+        area: area,
+      );
+
+      final pharmRef = _db
+          .collection('cities')
+          .doc(city)
+          .collection('areas')
+          .doc(area)
+          .collection('pharmacies')
+          .doc(uid);
+
+      await pharmRef.set(profile.toMap(), SetOptions(merge: true));
+
+      await _db.collection('pharmacyIndex').doc(uid).set({
+        'city': city,
+        'area': area,
+        'pharmacyName': pharmacyName,
+        'email': email,
+      }, SetOptions(merge: true));
+
+      // Copy legacy medicines from root /medicines to the new /stock if any exist
+      final legacyMeds = await _db.collection('medicines').get();
+      for (final doc in legacyMeds.docs) {
+        await pharmRef.collection('stock').doc(doc.id).set(doc.data(), SetOptions(merge: true));
+      }
+
+      // Copy legacy sales from root /sales to the new /sales if any exist
+      final legacySales = await _db.collection('sales').get();
+      for (final doc in legacySales.docs) {
+        await pharmRef.collection('sales').doc(doc.id).set(doc.data(), SetOptions(merge: true));
+      }
+    } catch (_) {}
   }
 
   // ─── Profile stream ───────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'providers/providers.dart';
+import 'services/auth_service.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
@@ -69,17 +70,45 @@ class PharmaDashApp extends ConsumerWidget {
             error: (err, _) => Scaffold(
               body: Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(28.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const Icon(Icons.store_mall_directory_outlined,
+                          size: 56, color: AppColors.primary),
                       const SizedBox(height: 16),
-                      Text('Error loading pharmacy: $err', textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => ref.invalidate(pharmacyLocationFutureProvider),
-                        child: const Text('Retry'),
+                      Text(
+                        'Pharmacy Profile Not Found',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'This account (${user.email}) does not have a registered pharmacy profile in Firestore yet.\n\nPlease Register / Sign Up your pharmacy.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              await ref.read(authServiceProvider).signOut();
+                            },
+                            icon: const Icon(Icons.logout),
+                            label: const Text('Sign Out & Register'),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            onPressed: () =>
+                                ref.invalidate(pharmacyLocationFutureProvider),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                          ),
+                        ],
                       ),
                     ],
                   ),

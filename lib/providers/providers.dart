@@ -47,10 +47,10 @@ final pharmacyLocationFutureProvider = FutureProvider<PharmacyLocation?>((ref) a
   final user = ref.watch(authUserProvider).valueOrNull;
   if (user == null) return null;
 
-  final path = await ref.read(authServiceProvider).resolvePharmacyPath(user.uid);
-  if (path == null) {
-    throw Exception('Pharmacy profile not found. Please sign up or register.');
-  }
+  final path = await ref.read(authServiceProvider).resolvePharmacyPath(
+        user.uid,
+        user.email ?? '',
+      );
 
   return PharmacyLocation(
     uid: user.uid,
