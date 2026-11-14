@@ -1,0 +1,178 @@
+{
+  "project_info": {
+    "project_number": "875181118672",
+    "project_id": "klinixy-68521",
+    "storage_bucket": "klinixy-68521.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875181118672:android:c2b282bd984afd5cad3ad5",
+        "android_client_info": {
+          "package_name": "com.example.pharmacist_dashboard"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "875181118672-bf38k7o7rvs5cuievmn7jsvuefnn357e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfz1UIhPNbTOWBcq8yG7szLpuh3qrGWdM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "875181118672-bf38k7o7rvs5cuievmn7jsvuefnn357e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "875181118672-1fc8kg3u17apfd1kn63rpcsi00cpieqv.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.klinixy.pharmacies"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875181118672:android:16d4e9ada0cfee01ad3ad5",
+        "android_client_info": {
+          "package_name": "com.klinixy.admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "875181118672-bf38k7o7rvs5cuievmn7jsvuefnn357e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfz1UIhPNbTOWBcq8yG7szLpuh3qrGWdM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "875181118672-bf38k7o7rvs5cuievmn7jsvuefnn357e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "875181118672-1fc8kg3u17apfd1kn63rpcsi00cpieqv.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.klinixy.pharmacies"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875181118672:android:4b1ca6ca3e05e4fbad3ad5",
+        "android_client_info": {
+          "package_name": "com.klinixy.pharmacies"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "875181118672-kuqh7fk29ir06hj51a2c853koaahfkib.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.klinixy.pharmacies",
+            "certificate_hash": "5f02a496742f3d6047feba42b960eddf38440a98"
+          }
+        },
+        {
+          "client_id": "875181118672-bf38k7o7rvs5cuievmn7jsvuefnn357e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfz1UIhPNbTOWBcq8yG7szLpuh3qrGWdM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "875181118672-bf38k7o7rvs5cuievmn7jsvuefnn357e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "875181118672-1fc8kg3u17apfd1kn63rpcsi00cpieqv.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.klinixy.pharmacies"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875181118672:android:d78e1b46c3c41c4dad3ad5",
+        "android_client_info": {
+          "package_name": "com.softrion.klinixy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "875181118672-141fnk3sdfdck9fb1fieta5373devl28.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.softrion.klinixy",
+            "certificate_hash": "f7707e66722a6ee6df0d20201e5bfb7a4d714c6b"
+          }
+        },
+        {
+          "client_id": "875181118672-f3r8qaf7de59r2utfs73opcvd2k93u72.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.softrion.klinixy",
+            "certificate_hash": "4d3104bbc195795b0e7f0c075ec4fc92e87d0f38"
+          }
+        },
+        {
+          "client_id": "875181118672-bf38k7o7rvs5cuievmn7jsvuefnn357e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfz1UIhPNbTOWBcq8yG7szLpuh3qrGWdM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "875181118672-bf38k7o7rvs5cuievmn7jsvuefnn357e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "875181118672-1fc8kg3u17apfd1kn63rpcsi00cpieqv.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.klinixy.pharmacies"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

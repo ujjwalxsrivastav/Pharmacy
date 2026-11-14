@@ -1,0 +1,743 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Softrion Technologies ERP - Unified New Age ERP Proposal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .page-break { page-break-after: always; break-after: page; }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 12mm 10mm;
+            }
+
+            /* Hide the top action bar completely */
+            .no-print {
+                display: none !important;
+            }
+
+            /* Reset body for print */
+            body {
+                background-color: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* Each page card becomes a clean print page */
+            .page-break {
+                /* Remove screen-only decorations */
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                border: none !important;
+                overflow: visible !important;
+
+                /* Remove screen margins/spacing */
+                margin: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+
+                /* Force each card onto its own printed page */
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+
+                /* Keep the padding for readability but reduce it */
+                padding: 20px 24px !important;
+
+                /* Constrain height to page */
+                min-height: auto !important;
+                height: auto !important;
+            }
+
+            /* Last page: don't force a blank page after it */
+            .page-break:last-of-type {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+
+            /* Ensure grid layouts don't break across pages */
+            .grid {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            /* Preserve background colors in print */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+    <!-- Top Action Bar -->
+    <div class="no-print bg-slate-900 text-white py-3 px-6 flex justify-between items-center shadow-md sticky top-0 z-50">
+        <div class="flex items-center space-x-2">
+            <span class="bg-blue-600 text-xs px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider">Brochure v1.0</span>
+            <span class="text-sm font-medium">Softrion Technologies ERP — AI-First Campus Operating System</span>
+        </div>
+        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow">Print / Export PDF</button>
+    </div>
+
+    <!-- PAGE 1: COVER -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] flex flex-col justify-between p-12 relative border border-slate-200 page-break">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-6">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/30">S</div>
+                    <div>
+                        <h1 class="text-xl font-bold tracking-tight text-slate-900">SOFTRION TECHNOLOGIES</h1>
+                        <p class="text-xs text-blue-600 font-semibold tracking-wider uppercase">Unified Digital Campus ERP</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs font-semibold text-slate-400">October 2026</p>
+                    <p class="text-xs font-bold text-slate-600">VERSION 1.0</p>
+                </div>
+            </div>
+
+            <div class="mt-16">
+                <span class="inline-block bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-md mb-4 border border-blue-100">AI-FIRST CAMPUS OPERATING SYSTEM</span>
+                <h2 class="text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">Unified Digital Campus <br><span class="text-blue-600">Implementation Proposal</span></h2>
+                <p class="mt-4 text-sm text-slate-600 max-w-2xl leading-relaxed">One platform for every academic, administrative and financial process — from admissions to alumni, on a single connected, learning ecosystem.</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 my-8">
+            <div class="flex items-start space-x-3 bg-slate-50 border border-slate-100 rounded-xl p-4">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800">End-to-End Admissions</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Online applications, document upload, eligibility checks &amp; enrolment — all in one flow.</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3 bg-slate-50 border border-slate-100 rounded-xl p-4">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800">Academics &amp; LMS</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Timetables, lesson plans, CBCS course registration &amp; activity-driven learning management.</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3 bg-slate-50 border border-slate-100 rounded-xl p-4">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800">Fee &amp; Payment Management</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Fee structures, instalments, scholarships &amp; omnichannel payments (UPI, Card, Netbanking, EMI).</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3 bg-slate-50 border border-slate-100 rounded-xl p-4">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800">AI-Powered Analytics</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Real-time dashboards, predictive student insights &amp; automated NAAC/NBA attainment reports.</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3 bg-slate-50 border border-slate-100 rounded-xl p-4">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800">Examinations &amp; Results</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">CIE workflows, hall ticket generation, automated valuation &amp; digital result publishing.</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3 bg-slate-50 border border-slate-100 rounded-xl p-4">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-800">Campus Operations</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">HR &amp; payroll, hostel, library, GPS bus tracking, helpdesk &amp; visitor management — unified.</p>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="border-t border-slate-100 pt-6 flex justify-between items-end">
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Prepared For</p>
+                <p class="text-sm font-semibold text-slate-800">Shivalik College of Engineering, Dehradun</p>
+            </div>
+            <div class="text-right">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Prepared By</p>
+                <p class="text-sm font-semibold text-blue-600">Softrion Technologies Pvt. Ltd.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 2: INDEX & PLATFORM OVERVIEW -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">Proposal Contents</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <h2 class="text-xl font-bold text-slate-900 mb-4">Table of Contents</h2>
+            <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-xs font-medium text-slate-700 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>1. Introduction & Platform Overview</span><span class="font-bold text-blue-600">3</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>8. Distance Learning Platform (ODL)</span><span class="font-bold text-blue-600">9</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>2. University Challenges</span><span class="font-bold text-blue-600">4</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>9. Campus Intelligence Layer</span><span class="font-bold text-blue-600">10</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>3. The Intelligent Operating System</span><span class="font-bold text-blue-600">5</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>10. Implementation Journey</span><span class="font-bold text-blue-600">11</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>4. Academics & Assessments</span><span class="font-bold text-blue-600">6</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>11. Platform Architecture</span><span class="font-bold text-blue-600">12</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>5. Student Enrolments & Payments</span><span class="font-bold text-blue-600">7</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>12. Security, Governance & Support</span><span class="font-bold text-blue-600">13</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>6. Campus Activities & Engagement</span><span class="font-bold text-blue-600">8</span></div>
+                <div class="flex justify-between py-1 border-b border-slate-200/60"><span>13. Pricing & Commercials</span><span class="font-bold text-blue-600">14</span></div>
+                <div class="flex justify-between py-1"><span>7. Campus Operations & Bus Tracking</span><span class="font-bold text-blue-600">8</span></div>
+                <div class="flex justify-between py-1"><span>14. ROI, Outcomes & Next Steps</span><span class="font-bold text-blue-600">15</span></div>
+            </div>
+
+            <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-xl mb-6">
+                <p class="text-xs text-blue-900 font-semibold mb-1">How to use this proposal:</p>
+                <p class="text-xs text-blue-800">Read Sections 1–3 for vision, Sections 4–9 for module capabilities, Sections 10–12 for delivery & security, and Sections 13–14 for commercials and outcomes.</p>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 2</div>
+    </div>
+
+    <!-- PAGE 3: INTRODUCTION & PLATFORM OVERVIEW -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">01 · Introduction & Platform Overview</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <p class="text-sm text-slate-600 leading-relaxed mb-4">Indian higher education is moving rapidly toward integrated digital ecosystems. The National Education Policy (NEP) 2020 and UGC Digital University Framework are pushing institutions toward transparent governance and digital-first student experiences. The question is no longer whether to digitise — it is whether the systems work together.</p>
+            
+            <h4 class="font-bold text-slate-900 text-sm mb-2">From isolated applications to a unified digital backbone</h4>
+            <p class="text-sm text-slate-600 leading-relaxed mb-6">Most institutions run on a patchwork of isolated applications, spreadsheet processes, and disconnected portals. Softrion Technologies replaces that patchwork with one unified digital backbone — a single campus operating system sharing the same data and workflows.</p>
+
+            <div class="bg-slate-900 text-white p-4 rounded-xl mb-6 italic text-xs leading-relaxed">
+                "From digitisation to intelligence, Softrion Technologies transforms every academic, administrative and financial process into a connected, learning ecosystem."
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 text-sm mb-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-slate-900 mb-1 text-xs uppercase tracking-wider text-blue-600">Who We Serve</p>
+                    <ul class="text-xs text-slate-600 space-y-1">
+                        <li>• State & Central Universities</li>
+                        <li>• State Private Universities</li>
+                        <li>• Private Deemed to be Universities</li>
+                        <li>• Autonomous Colleges & K-12 Schools</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-slate-900 mb-1 text-xs uppercase tracking-wider text-blue-600">Platform At A Glance</p>
+                    <ul class="text-xs text-slate-600 space-y-1">
+                        <li>• Modular suite adopted module by module</li>
+                        <li>• AI-first predictive analytics built-in</li>
+                        <li>• End-to-end student lifecycle coverage</li>
+                        <li>• Cloud-native infrastructure (99.9% uptime)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 3</div>
+    </div>
+
+    <!-- PAGE 4: UNIVERSITY CHALLENGES -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">02 · University Challenges</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <p class="text-sm text-slate-600 mb-6">For a growing institution such as Shivalik College of Engineering, four pressures recur across departments — each tracing back to fragmented systems rather than a lack of effort.</p>
+
+            <div class="grid grid-cols-2 gap-4 text-xs mb-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Governance Complexity</span>
+                    <p class="text-slate-600">Multiple campuses and portfolios make consistent executive oversight difficult.</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Manual Workflows</span>
+                    <p class="text-slate-600">Reliance on email, paper files, and offline approvals slows every administrative process.</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Delayed Visibility</span>
+                    <p class="text-slate-600">Fragmented data sources mean leaders see yesterday's picture, not real-time metrics.</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Rising Expectations</span>
+                    <p class="text-slate-600">Students and parents now expect instantaneous, mobile self-service digital access.</p>
+                </div>
+            </div>
+
+            <h4 class="font-bold text-slate-900 text-sm mb-3">What fragmentation costs in practice</h4>
+            <div class="grid grid-cols-2 gap-4 text-xs">
+                <div class="bg-red-50/60 p-4 rounded-xl border border-red-100">
+                    <p class="font-bold text-red-700 mb-1">Governance & Reporting Gaps</p>
+                    <p class="text-slate-600">Reports are assembled by hand from different sources, arriving late and rarely agreeing.</p>
+                </div>
+                <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-100">
+                    <p class="font-bold text-amber-700 mb-1">Compliance Vulnerability</p>
+                    <p class="text-slate-600">Accreditation and regulatory submissions rely on manual reconciliation, raising audit risk.</p>
+                </div>
+                <div class="bg-blue-50/60 p-4 rounded-xl border border-blue-100">
+                    <p class="font-bold text-blue-700 mb-1">Operational Inefficiency</p>
+                    <p class="text-slate-600">Staff time is lost to repetitive verification, offline approvals, and data consolidation.</p>
+                </div>
+                <div class="bg-purple-50/60 p-4 rounded-xl border border-purple-100">
+                    <p class="font-bold text-purple-700 mb-1">Student Experience Impact</p>
+                    <p class="text-slate-600">Fragmented portals result in poor self-service and reduced digital satisfaction.</p>
+                </div>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 4</div>
+    </div>
+
+    <!-- PAGE 5: THE INTELLIGENT OPERATING SYSTEM -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">03 · The Intelligent Operating System</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <p class="text-sm text-slate-600 mb-4">A traditional ERP records what happened. Softrion Technologies activates institutional data so that recording a process also improves the next one through closed-loop feedback.</p>
+
+            <div class="grid grid-cols-2 gap-4 text-xs mb-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Digitise vs. Activate</span>
+                    <p class="text-slate-600">Workflows go online and generate analytics and predictive alerts automatically.</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Unified Data Backbone</span>
+                    <p class="text-slate-600">One single source of truth across academics, finance, HR, and engagement.</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Configurable Workflows</span>
+                    <p class="text-slate-600">Approvals, roles, and rules shaped to your institution, not rigid templates.</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">AI-Native Analytics</span>
+                    <p class="text-slate-600">Predictions and decision support woven through every functional module.</p>
+                </div>
+            </div>
+
+            <h4 class="font-bold text-slate-900 text-sm mb-3">Six Key Systems in One Ecosystem</h4>
+            <div class="space-y-2 text-xs">
+                <div class="flex justify-between bg-slate-50 p-3 rounded-lg border border-slate-100"><span class="font-bold text-slate-800">Academics & Assessments</span><span class="text-slate-600">Curriculum design, teaching delivery & outcome-based assessments</span></div>
+                <div class="flex justify-between bg-slate-50 p-3 rounded-lg border border-slate-100"><span class="font-bold text-slate-800">Student Enrolments & Payments</span><span class="text-slate-600">Streamlined admissions, fee collection & financial management</span></div>
+                <div class="flex justify-between bg-slate-50 p-3 rounded-lg border border-slate-100"><span class="font-bold text-slate-800">Campus Activities & Engagement</span><span class="text-slate-600">Mobile-first platform for clubs, events & communications</span></div>
+                <div class="flex justify-between bg-slate-50 p-3 rounded-lg border border-slate-100"><span class="font-bold text-slate-800">Campus Operations</span><span class="text-slate-600">Transport, hostel, library, services & office workflows</span></div>
+                <div class="flex justify-between bg-slate-50 p-3 rounded-lg border border-slate-100"><span class="font-bold text-slate-800">Distance Learning Platform</span><span class="text-slate-600">Complete online learning with virtual classrooms</span></div>
+                <div class="flex justify-between bg-slate-50 p-3 rounded-lg border border-slate-100"><span class="font-bold text-slate-800">Campus Intelligence</span><span class="text-slate-600">Real-time dashboards and predictive analytics</span></div>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 5</div>
+    </div>
+
+    <!-- PAGE 6: ACADEMICS & ASSESSMENTS -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">04 · Academics & Assessments</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 text-xs mb-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Academic Configuration</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Degrees, programmes & regulations setup</li>
+                        <li>• Choice-Based Course Registrations (CBCS)</li>
+                        <li>• Flexible student preference alignments</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Teaching & Classroom</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Academic calendar, timetables & lesson plans</li>
+                        <li>• Activity-driven LMS with digital handouts</li>
+                        <li>• Class-linked assignments and materials</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Assessments & Evaluation</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Continuous Internal Evaluation (CIE) rubrics</li>
+                        <li>• Pre & post-exam workflow management</li>
+                        <li>• Automated valuation & result generation</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Analytics & OBE</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Outcome-Based Education & CO-PO mapping</li>
+                        <li>• Automated NAAC / NBA attainment reports</li>
+                        <li>• Predictive student performance insights</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <p class="font-bold text-blue-900 text-xs mb-2">Dedicated Stakeholder Dashboards:</p>
+                <p class="text-[11px] text-blue-800 leading-relaxed">Students, Parents, Faculty Members, Course Coordinators, Heads of Departments, Academic Office, Examinations Team, Deans & Academic Leadership, and IQAC Coordinators.</p>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 6</div>
+    </div>
+
+    <!-- PAGE 7: STUDENT ENROLMENTS & PAYMENTS -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">05 · Student Enrolments & Payments</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 text-xs mb-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Admissions End-to-End</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Branded application forms & document uploads</li>
+                        <li>• Application tracking system for applicant visibility</li>
+                        <li>• Student nurturing & counselor lead tracking</li>
+                        <li>• Eligibility checks, verification & approval flows</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Fee Collection & Analytics</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Fee structures, instalments & scholarships</li>
+                        <li>• Omnichannel payments (Card, UPI, Netbanking, EMI)</li>
+                        <li>• Automated payment reconciliation</li>
+                        <li>• Drill-down collection and defaulter reports</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 text-white p-4 rounded-xl">
+                <p class="font-bold text-xs uppercase tracking-wider text-blue-400 mb-1">Enrolment Stakeholders</p>
+                <p class="text-[11px] text-slate-300">Students, Parents, Admissions Team, Finance & Accounts Team, Academic Counsellors, Programme Coordinators, Scholarship Committee, Administrative Officer, and Institutional Leadership.</p>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 7</div>
+    </div>
+
+    <!-- PAGE 8: CAMPUS ACTIVITIES, ENGAGEMENT & BUS TRACKING -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">06 & 07 · Engagement & Bus Tracking</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 text-xs mb-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Communication & Community</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Centralised digital notice boards (web & mobile)</li>
+                        <li>• Multi-channel announcements for events</li>
+                        <li>• End-to-end event planning & reporting</li>
+                        <li>• Digital management of student clubs & societies</li>
+                    </ul>
+                </div>
+                <div class="bg-blue-50/70 p-4 rounded-xl border border-blue-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">🚌 Real-Time Bus Tracking</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Live GPS tracking of college transport fleet</li>
+                        <li>• Digital bus passes and RFID attendance logs</li>
+                        <li>• Route monitoring and arrival notifications</li>
+                        <li>• Driver and transit management portal</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 text-xs">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Mentoring & Research</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Structured mentoring journeys & meeting logs</li>
+                        <li>• Student smart portfolios & achievements</li>
+                        <li>• Comprehensive faculty research portfolios</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Campus Operations & Facilities</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• HR lifecycle & automated payroll management</li>
+                        <li>• Hostel room allocation & entry/exit approvals</li>
+                        <li>• Library circulation & visitor management logs</li>
+                        <li>• Helpdesk grievance ticketing and resolution</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 8</div>
+    </div>
+
+    <!-- PAGE 9: DISTANCE LEARNING PLATFORM -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">08 · Distance Learning Platform (ODL)</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <p class="text-sm text-slate-600 mb-4">A fully modular platform enabling universities to deliver online, blended, and open-learning programmes with seamless student journeys from admission to digital certification.</p>
+
+            <div class="grid grid-cols-2 gap-4 text-xs mb-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Online Admissions & Fees</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Digital program discovery and applications</li>
+                        <li>• Eligibility checks and required document portals</li>
+                        <li>• EMI-ready online fee payments and gateway integration</li>
+                        <li>• Choice-based course registration for online learners</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Online Delivery & Exams</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Activity-driven LMS with video modules & handouts</li>
+                        <li>• Discussion forums and doubt-clearing sessions</li>
+                        <li>• Secure proctored online examinations (MCQ/Subjective)</li>
+                        <li>• Automated score computation & digital certificates</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <p class="font-bold text-slate-900 text-xs mb-1">ODL Stakeholders:</p>
+                <p class="text-[11px] text-slate-600">Online/Distance Learners, Faculty, Course Coordinators, Evaluation Cell, Examinations Team, Academic Office, Programme Directors, and Institutional Leadership.</p>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 9</div>
+    </div>
+
+    <!-- PAGE 10: CAMPUS INTELLIGENCE LAYER -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">09 · Campus Intelligence Layer</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <p class="text-sm text-slate-600 mb-4">Transforms raw institutional data into structured dashboards, configurable reports, and AI-driven insights for faster, more confident leadership decisions.</p>
+
+            <div class="grid grid-cols-2 gap-4 text-xs mb-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Smart Dashboards</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Academic Performance: Real-time CIE & attendance</li>
+                        <li>• Examination & Evaluation: Live valuation status</li>
+                        <li>• Financial & Payments: Collections, dues & channels</li>
+                        <li>• Operational: Unified view of transport, hostel & library</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Advanced AI & Reporting</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Report Forge: Custom report builder with audit trails</li>
+                        <li>• Predictive Trends: AI projections for retention & growth</li>
+                        <li>• Medha AI: Conversational assistant for queries</li>
+                        <li>• Automated Risk Alerts for attendance & compliance</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <p class="font-bold text-blue-900 text-xs mb-1">Intelligence Stakeholders:</p>
+                <p class="text-[11px] text-blue-800">Heads of Departments, Academic Leadership, Controller of Examinations, Administrative Officers, Deans & Directors, and Promoters & Management.</p>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 10</div>
+    </div>
+
+    <!-- PAGE 11: IMPLEMENTATION JOURNEY -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">10 · Implementation Journey</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <p class="text-sm text-slate-600 mb-4">A proven 5-phase structured rollout ensuring smooth transition from legacy records to a fully connected digital campus.</p>
+
+            <div class="space-y-3 text-xs mb-6">
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                    <div><span class="font-bold text-blue-600">Phase 1: Discovery</span><p class="text-slate-600">Understanding leadership, workflows, admissions, exams, and governance models.</p></div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                    <div><span class="font-bold text-blue-600">Phase 2: Configuration</span><p class="text-slate-600">Shaping academic structure, user roles, permissions, and workflow automations.</p></div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                    <div><span class="font-bold text-blue-600">Phase 3: Data Migration</span><p class="text-slate-600">Securely migrating historical student, staff, and operational data with multi-validation cycles.</p></div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                    <div><span class="font-bold text-blue-600">Phase 4: Verification</span><p class="text-slate-600">Building confidence through real-world testing and final system refinements.</p></div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                    <div><span class="font-bold text-blue-600">Phase 5: Enablement & Training</span><p class="text-slate-600">Role-based training for faculty and administrative staff with controlled usage.</p></div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 text-white p-4 rounded-xl text-xs">
+                <p class="font-bold text-blue-400 mb-1">Outcome — A Fully Digital Campus</p>
+                <p class="text-slate-300">A fully operational platform with digitised workflows, trained personnel, and a robust connected ecosystem supporting governance and learning.</p>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 11</div>
+    </div>
+
+    <!-- PAGE 12: PLATFORM ARCHITECTURE -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">11 · Platform Architecture</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <p class="text-sm text-slate-600 mb-4">A modern, AI-native, cloud-native architecture connecting all campus functions through a unified data backbone for high availability and real-time interoperability.</p>
+
+            <div class="space-y-2 text-xs mb-6">
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex justify-between"><span class="font-bold text-slate-800">Client Layer</span><span class="text-slate-600">Web Portal, Mobile Apps for every stakeholder, WhatsApp Bot</span></div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex justify-between"><span class="font-bold text-slate-800">Integrations Layer</span><span class="text-slate-600">SSO, OAuth, Payment Gateway, NAD/DigiLocker, Tally, Zoom/Teams</span></div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex justify-between"><span class="font-bold text-slate-800">Gateway & Microservices</span><span class="text-slate-600">Unified API Gateway routing academics, examinations, HRMS & finance</span></div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex justify-between"><span class="font-bold text-slate-800">Data & Infrastructure</span><span class="text-slate-600">Unified data backbone on secure multi-tenant cloud infrastructure</span></div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 flex justify-between"><span class="font-bold text-slate-800">Softrion AI Engine</span><span class="text-slate-600">NLP processing, ML models, recommendations and predictive analytics</span></div>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 12</div>
+    </div>
+
+    <!-- PAGE 13: SECURITY, GOVERNANCE & SUPPORT -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">12 · Security, Governance & Support</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 text-xs mb-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Security & Governance</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• End-to-end encryption (TLS in transit & at rest)</li>
+                        <li>• Workspace-based role access control</li>
+                        <li>• Secure session controls & audit logging</li>
+                        <li>• Region-specific data residency & backups</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="font-bold text-blue-600 mb-2 uppercase tracking-wider">Support Framework</p>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• Centralised helpdesk portal and email tracking</li>
+                        <li>• Priority-based response & resolution by severity</li>
+                        <li>• Defined escalation to managers & account owners</li>
+                        <li>• Support hours: 9:00 AM – 6:30 PM (Mon-Sat)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 13</div>
+    </div>
+
+    <!-- PAGE 14: PRICING & COMMERCIALS -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">13 · Pricing & Commercials</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <h4 class="font-bold text-slate-900 text-sm mb-3">Commercial Structure for Shivalik College of Engineering</h4>
+            <div class="overflow-x-auto mb-6">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-100 text-slate-700 font-semibold uppercase text-xs">
+                        <tr>
+                            <th class="py-3 px-4 rounded-l-lg">Item</th>
+                            <th class="py-3 px-4">Description</th>
+                            <th class="py-3 px-4 text-right rounded-r-lg">Commercials</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-xs font-medium">
+                        <tr><td class="py-3 px-4 font-bold text-slate-800">Implementation Fee</td><td class="py-3 px-4">Per campus setup, migration, configuration & rollout</td><td class="py-3 px-4 text-right font-bold text-blue-600">₹4,49,999</td></tr>
+                        <tr><td class="py-3 px-4 font-bold text-slate-800">Annual Platform Fee</td><td class="py-3 px-4">Per enrolled student per academic year</td><td class="py-3 px-4 text-right font-bold text-blue-600">₹699 / student</td></tr>
+                        <tr><td class="py-3 px-4 font-bold text-slate-800">Staff HRMS Fee</td><td class="py-3 px-4">HRMS & Payroll module per staff member per year</td><td class="py-3 px-4 text-right font-bold text-blue-600">₹999 / staff</td></tr>
+                        <tr><td class="py-3 px-4 font-bold text-slate-800">Add-on Services</td><td class="py-3 px-4">SMS & WhatsApp notification usage</td><td class="py-3 px-4 text-right font-bold text-blue-600">As per usage</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 text-xs mb-4">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">University-Funded Model</span>
+                    <p class="text-slate-600">Annual fee billed directly to university for centralized budgeting and institutional transformation.</p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Shared-Costing Model</span>
+                    <p class="text-slate-600">Platform fee charged directly to students each semester along with regular fees for flexibility.</p>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-3 rounded-xl text-[11px] text-blue-900">
+                <p>All commercials are exclusive of 18% GST. Valid for 90 days. Billed annually in advance at the start of each academic year.</p>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 14</div>
+    </div>
+
+    <!-- PAGE 15: ROI, OUTCOMES & NEXT STEPS -->
+    <div class="max-w-4xl mx-auto my-8 bg-white shadow-xl rounded-2xl overflow-hidden min-h-[1050px] p-12 relative border border-slate-200 page-break flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                <h3 class="text-sm font-bold tracking-widest text-blue-600 uppercase">14 · ROI, Outcomes & Next Steps</h3>
+                <span class="text-xs font-semibold text-slate-400">VERSION 1.0</span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 text-xs mb-6">
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Productivity Uplift</span>
+                    <p class="text-slate-600">Higher operational throughput across academic, exam, and finance cycles.</p>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Governance Transparency</span>
+                    <p class="text-slate-600">Real-time reporting, unified data, and improved decision responsiveness.</p>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span class="font-bold text-blue-600 block mb-1">Experience Modernisation</span>
+                    <p class="text-slate-600">A unified digital ecosystem for students, faculty, parents, and administrators.</p>
+                </div>
+            </div>
+
+            <h4 class="font-bold text-slate-900 text-sm mb-2">Next Steps</h4>
+            <ul class="text-xs text-slate-600 space-y-1 mb-6">
+                <li>1. Detailed technical walkthrough of the platform.</li>
+                <li>2. Pricing alignment on models and terms in Section 13.</li>
+                <li>3. Institutional onboarding plan agreed with academic and IT leadership.</li>
+            </ul>
+
+            <div class="bg-slate-900 text-white p-4 rounded-xl text-xs leading-relaxed">
+                <p class="font-bold text-blue-400 mb-1">Conclusion</p>
+                <p class="text-slate-300">Shivalik College of Engineering has demonstrated leadership in academics and growth. Softrion Technologies looks forward to collaborating as a long-term digital transformation partner — delivering unified campus operating systems and AI-enabled governance.</p>
+            </div>
+        </div>
+        <div class="text-right text-xs text-slate-400 font-semibold">Page 15</div>
+    </div>
+
+</body>
+</html>

@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'providers/providers.dart';
+import 'services/database_service.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
-import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -20,7 +20,7 @@ class PharmaDashApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(themeModeProvider);
-    final authService = ref.watch(authServiceProvider);
+    final authAsync = ref.watch(authUserProvider);
 
     return MaterialApp(
       title: 'PharmaDash',
@@ -28,15 +28,21 @@ class PharmaDashApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-      home: StreamBuilder(
-        stream: authService.authStateChanges,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      home: authAsync.when(
+        data: (user) {
+          if (user != null) {
+            // Set the pharmacyId in the provider whenever user logs in
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref.read(currentPharmacyIdProvider.notifier).state = user.uid;
+            });
+            return const HomeShell();
           }
-          if (snapshot.hasData) return const HomeShell();
           return const LoginScreen();
         },
+        loading: () => const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+        error: (_, __) => const LoginScreen(),
       ),
     );
   }

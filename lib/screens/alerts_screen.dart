@@ -39,7 +39,7 @@ class AlertsScreen extends ConsumerWidget {
                   return Expanded(
                     child: Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.check_circle_outline_rounded, size: 64, color: AppColors.success),
+                        const Icon(Icons.check_circle_outline_rounded, size: 64, color: AppColors.success),
                         const SizedBox(height: 16),
                         Text('All Clear!', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700, color: colors.textPrimary)),
                         const SizedBox(height: 8),

@@ -21,6 +21,7 @@ class DashboardScreen extends ConsumerWidget {
 
     final medicinesAsync = ref.watch(medicinesStreamProvider);
     final salesAsync = ref.watch(salesStreamProvider);
+    final profileAsync = ref.watch(pharmacyProfileProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -46,7 +47,27 @@ class DashboardScreen extends ConsumerWidget {
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                             Text('$greeting 👋', style: GoogleFonts.inter(fontSize: 14, color: colors.textSecondary)),
                             const SizedBox(height: 4),
-                            Text('Dr. Pharmacist', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                            profileAsync.when(
+                              data: (profile) => Text(
+                                profile?.handlerName ?? 'Pharmacist',
+                                style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              loading: () => Text('Welcome', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                              error: (_, __) => Text('Welcome', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                            ),
+                            profileAsync.maybeWhen(
+                              data: (profile) => profile != null
+                                  ? Text(
+                                      profile.pharmacyName,
+                                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                  : const SizedBox.shrink(),
+                              orElse: () => const SizedBox.shrink(),
+                            ),
                           ]),
                         ),
                         GestureDetector(
@@ -58,10 +79,15 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Container(
-                          width: 44, height: 44,
-                          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), gradient: const LinearGradient(colors: AppColors.accentGradient)),
-                          child: const Icon(Icons.person, color: Colors.white, size: 22),
+                        Builder(
+                          builder: (ctx) => GestureDetector(
+                            onTap: () => Scaffold.of(ctx).openDrawer(),
+                            child: Container(
+                              width: 44, height: 44,
+                              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), gradient: const LinearGradient(colors: AppColors.accentGradient)),
+                              child: const Icon(Icons.person, color: Colors.white, size: 22),
+                            ),
+                          ),
                         ),
                       ],
                     ),

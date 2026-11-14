@@ -5,42 +5,84 @@ import '../models/sale.dart';
 
 class DatabaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String pharmacyId;
 
-  // ─── Medicines ───────────────────────────────────────────
+  DatabaseService({required this.pharmacyId});
+
+  // ─── Medicines (pharmacy-scoped) ───────────────────────────────────────
   Stream<List<Medicine>> getMedicinesStream() {
-    return _firestore.collection('medicines').orderBy('name').snapshots().map(
-      (snapshot) => snapshot.docs.map((doc) => Medicine.fromMap(doc.data(), doc.id)).toList(),
-    );
+    return _firestore
+        .collection('pharmacies')
+        .doc(pharmacyId)
+        .collection('medicines')
+        .orderBy('name')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Medicine.fromMap(doc.data(), doc.id))
+            .toList());
   }
 
   Future<void> addMedicine(Medicine medicine) async {
-    await _firestore.collection('medicines').add(medicine.toMap());
+    await _firestore
+        .collection('pharmacies')
+        .doc(pharmacyId)
+        .collection('medicines')
+        .add(medicine.toMap());
   }
 
   Future<void> updateMedicine(String id, Map<String, dynamic> data) async {
-    await _firestore.collection('medicines').doc(id).update(data);
+    await _firestore
+        .collection('pharmacies')
+        .doc(pharmacyId)
+        .collection('medicines')
+        .doc(id)
+        .update(data);
   }
 
   Future<void> deleteMedicine(String id) async {
-    await _firestore.collection('medicines').doc(id).delete();
+    await _firestore
+        .collection('pharmacies')
+        .doc(pharmacyId)
+        .collection('medicines')
+        .doc(id)
+        .delete();
   }
 
-  // ─── Sales ──────────────────────────────────────────────
+  // ─── Sales (pharmacy-scoped) ───────────────────────────────────────────
   Stream<List<Sale>> getSalesStream() {
-    return _firestore.collection('sales').orderBy('date', descending: true).snapshots().map(
-      (snapshot) => snapshot.docs.map((doc) => Sale.fromMap(doc.data(), doc.id)).toList(),
-    );
+    return _firestore
+        .collection('pharmacies')
+        .doc(pharmacyId)
+        .collection('sales')
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Sale.fromMap(doc.data(), doc.id))
+            .toList());
   }
 
   Future<void> addSale(Sale sale) async {
-    await _firestore.collection('sales').add(sale.toMap());
+    await _firestore
+        .collection('pharmacies')
+        .doc(pharmacyId)
+        .collection('sales')
+        .add(sale.toMap());
   }
 
   Future<void> decrementStock(String medicineId, int quantity) async {
-    await _firestore.collection('medicines').doc(medicineId).update({
-      'stock': FieldValue.increment(-quantity),
-    });
+    await _firestore
+        .collection('pharmacies')
+        .doc(pharmacyId)
+        .collection('medicines')
+        .doc(medicineId)
+        .update({'stock': FieldValue.increment(-quantity)});
   }
 }
 
-final databaseServiceProvider = Provider<DatabaseService>((ref) => DatabaseService());
+final databaseServiceProvider = Provider<DatabaseService>((ref) {
+  final pharmacyId = ref.watch(currentPharmacyIdProvider);
+  return DatabaseService(pharmacyId: pharmacyId ?? '');
+});
+
+// Separate provider to hold the current logged-in pharmacy UID
+final currentPharmacyIdProvider = StateProvider<String?>((ref) => null);
