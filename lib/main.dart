@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'providers/providers.dart';
-import 'services/auth_service.dart';
-import 'services/database_service.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
@@ -33,42 +31,65 @@ class PharmaDashApp extends ConsumerWidget {
         loading: () => const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         ),
-        error: (_, __) => const LoginScreen(),
+        error: (err, _) => Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Auth Error: $err'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(authUserProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
         data: (user) {
           if (user == null) {
-            // Clear location on logout
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              ref.read(pharmacyLocationProvider.notifier).state = null;
-              ref.read(currentPharmacyIdProvider.notifier).state = null;
-            });
             return const LoginScreen();
           }
 
-          // User is logged in — resolve city/area if not done yet
-          final loc = ref.read(pharmacyLocationProvider);
-          if (loc == null) {
-            // Trigger lookup asynchronously
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              final path = await ref
-                  .read(authServiceProvider)
-                  .resolvePharmacyPath(user.uid);
-              if (path != null) {
-                ref.read(pharmacyLocationProvider.notifier).state =
-                    PharmacyLocation(
-                  uid: user.uid,
-                  city: path['city']!,
-                  area: path['area']!,
-                );
-                ref.read(currentPharmacyIdProvider.notifier).state = user.uid;
-              }
-            });
-            // Show loading while resolving
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
+          final locAsync = ref.watch(pharmacyLocationFutureProvider);
 
-          return const HomeShell();
+          return locAsync.when(
+            loading: () => const Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Loading pharmacy profile...'),
+                  ],
+                ),
+              ),
+            ),
+            error: (err, _) => Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text('Error loading pharmacy: $err', textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => ref.invalidate(pharmacyLocationFutureProvider),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            data: (loc) {
+              return const HomeShell();
+            },
+          );
         },
       ),
     );

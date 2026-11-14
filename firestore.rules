@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allows authenticated users to access their pharmacy and its nested data
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+

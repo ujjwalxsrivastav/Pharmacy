@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/medicine.dart';
 import '../models/sale.dart';
+import '../providers/providers.dart';
 
 /// Holds the resolved location path for the logged-in pharmacy.
 class PharmacyLocation {
@@ -81,18 +82,9 @@ class DatabaseService {
   }
 }
 
-// ─── Providers ────────────────────────────────────────────────────────────────
-
-/// Holds the UID of the logged-in pharmacy (set after login).
-final currentPharmacyIdProvider = StateProvider<String?>((ref) => null);
-
-/// Holds the resolved {city, area} after login lookup.
-final pharmacyLocationProvider =
-    StateProvider<PharmacyLocation?>((ref) => null);
-
-/// Database service — only active when location is known.
+// ─── Database service provider ───────────────────────────────────────────────
 final databaseServiceProvider = Provider<DatabaseService?>((ref) {
-  final loc = ref.watch(pharmacyLocationProvider);
+  final loc = ref.watch(pharmacyLocationFutureProvider).valueOrNull;
   if (loc == null) return null;
   return DatabaseService(location: loc);
 });

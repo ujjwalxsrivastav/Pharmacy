@@ -42,10 +42,27 @@ final authUserProvider = StreamProvider<User?>((ref) {
   return ref.watch(authServiceProvider).authStateChanges;
 });
 
+// ─── Pharmacy Location FutureProvider ─────────────────────────────────────────
+final pharmacyLocationFutureProvider = FutureProvider<PharmacyLocation?>((ref) async {
+  final user = ref.watch(authUserProvider).valueOrNull;
+  if (user == null) return null;
+
+  final path = await ref.read(authServiceProvider).resolvePharmacyPath(user.uid);
+  if (path == null) {
+    throw Exception('Pharmacy profile not found. Please sign up or register.');
+  }
+
+  return PharmacyLocation(
+    uid: user.uid,
+    city: path['city']!,
+    area: path['area']!,
+  );
+});
+
 // ─── Pharmacy Profile ─────────────────────────────────────────────────────────
-// Streams from: cities/{city}/areas/{area}/pharmacies/{uid}
 final pharmacyProfileProvider = StreamProvider<PharmacyProfile?>((ref) {
-  final loc = ref.watch(pharmacyLocationProvider);
+  final locAsync = ref.watch(pharmacyLocationFutureProvider);
+  final loc = locAsync.valueOrNull;
   if (loc == null) return Stream.value(null);
   return ref
       .watch(authServiceProvider)
@@ -53,7 +70,6 @@ final pharmacyProfileProvider = StreamProvider<PharmacyProfile?>((ref) {
 });
 
 // ─── Stock Stream ────────────────────────────────────────────────────────────
-// cities/{city}/areas/{area}/pharmacies/{uid}/stock
 final medicinesStreamProvider = StreamProvider<List<Medicine>>((ref) {
   final db = ref.watch(databaseServiceProvider);
   if (db == null) return Stream.value([]);
@@ -61,7 +77,6 @@ final medicinesStreamProvider = StreamProvider<List<Medicine>>((ref) {
 });
 
 // ─── Sales Stream ────────────────────────────────────────────────────────────
-// cities/{city}/areas/{area}/pharmacies/{uid}/sales
 final salesStreamProvider = StreamProvider<List<Sale>>((ref) {
   final db = ref.watch(databaseServiceProvider);
   if (db == null) return Stream.value([]);

@@ -72,12 +72,49 @@ class AuthService {
     return credential;
   }
 
-  // ─── Resolve path from index ─────────────────────────────────────────────
+  // ─── Resolve path from index or fallback search ────────────────────────────
   Future<Map<String, String>?> resolvePharmacyPath(String uid) async {
-    final snap = await _db.collection('pharmacyIndex').doc(uid).get();
-    if (!snap.exists) return null;
-    final d = snap.data()!;
-    return {'city': d['city'] as String, 'area': d['area'] as String};
+    try {
+      final snap = await _db.collection('pharmacyIndex').doc(uid).get();
+      if (snap.exists && snap.data() != null) {
+        final d = snap.data()!;
+        if (d['city'] != null && d['area'] != null) {
+          return {'city': d['city'] as String, 'area': d['area'] as String};
+        }
+      }
+    } catch (e) {
+      // Continue to search fallback
+    }
+
+    // Fallback: search collectionGroup('pharmacies')
+    try {
+      final groupSnap = await _db
+          .collectionGroup('pharmacies')
+          .get();
+
+      for (final doc in groupSnap.docs) {
+        if (doc.id == uid) {
+          // doc path: cities/{city}/areas/{area}/pharmacies/{uid}
+          final parts = doc.reference.path.split('/');
+          if (parts.length >= 4 && parts[0] == 'cities' && parts[2] == 'areas') {
+            final city = parts[1];
+            final area = parts[3];
+            // Cache back into pharmacyIndex for fast future logins
+            try {
+              await _db.collection('pharmacyIndex').doc(uid).set({
+                'city': city,
+                'area': area,
+                'pharmacyName': doc.data()['pharmacyName'] ?? '',
+                'email': doc.data()['email'] ?? '',
+              }, SetOptions(merge: true));
+            } catch (_) {}
+            return {'city': city, 'area': area};
+          }
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   // ─── Profile stream ───────────────────────────────────────────────────────
