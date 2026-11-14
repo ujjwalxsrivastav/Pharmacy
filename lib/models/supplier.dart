@@ -43,3 +43,4 @@ class Supplier {
         'createdAt': Timestamp.fromDate(createdAt),
       };
 }
+

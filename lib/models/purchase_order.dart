@@ -108,3 +108,4 @@ class PurchaseOrder {
         if (receivedBy != null) 'receivedBy': receivedBy,
       };
 }
+
