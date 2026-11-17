@@ -326,3 +326,42 @@
   - Added test suite `test/ecosystem_stock_sync_test.dart` verifying payload schema, slugification, and stock zero out logic.
   - Full test suite: 34/34 tests green (`flutter test`).
   - Code analysis: 0 warnings, 0 errors (`flutter analyze`).
+
+---
+
+### [Profile & Dashboard Enterprise Polish] Full Account Credentials Display & Responsive Stat Grid
+- **User Requests:**
+  1. "Profile wale button pe email wagera sab kuch visible honi chahiye" (On profile button, email and all related credentials/details must be visible).
+  2. "Bhai iska frontend top knotch kardo is wale page ka, dashboard screen ka" (Make the frontend of this dashboard screen top notch, eliminating awkward giant empty cards).
+- **Profile Bottom Sheet & Drawer Upgrades:**
+  - Added dedicated **ACCOUNT & CREDENTIALS** card displaying:
+    - Logged-in Account Email (`authUser.email`) with 1-click clipboard copy
+    - Pharmacy/Store Document ID (`docId`) with 1-click clipboard copy
+    - Contact Phone Number (`phone`) with 1-click clipboard copy
+    - GSTIN (`gstin`) with 1-click clipboard copy
+  - Added dedicated **LOCATION & REACH** card displaying:
+    - Physical address, area, and city
+    - Delivery radius (km)
+    - GPS coordinates (latitude, longitude) with direct "View in Google Maps" launch button
+  - Store Header: Pharmacy icon gradient, Pharmacy Name, Handler Name, Live GPS status pill, and interactive Store OPEN/CLOSED switch toggle
+  - In `showEditProfileDialog`:
+    - Logged-in email banner
+    - Editable contact email, store ID, pharmacy name, handler name, phone, GSTIN, radius, address, GPS coords
+    - GPS auto-detection button with high-accuracy settings
+  - Navigation drawer header: Updated to show logged-in email and handler under the pharmacy title
+- **Dashboard Screen & Glass Stat Cards Redesign:**
+  - Dynamically adaptive responsive grid using `LayoutBuilder`:
+    - `width >= 960`: 4 columns, `childAspectRatio = 2.15` (compact enterprise fintech ratio)
+    - `width >= 600`: 2 columns, `childAspectRatio = 2.2`
+    - `width < 600`: 2 columns, `childAspectRatio = 1.4`
+    - Completely prevents huge empty white space or distorted aspect ratios.
+  - Enhanced `GlassStatCard`:
+    - Ambient radial gradient glow in the top-right corner
+    - Subtle 1.2px colored accent border matching card's theme gradient
+    - Soft elevation shadow with gradient color tinting
+    - Header row: Rounded gradient icon container (34x34) + Status badge pill with micro-arrow
+    - Content column: Big bold typography (22px, 800 weight), high-contrast title, and contextual subtitle with live telemetry indicator dot
+    - `Expanded` vertical flex ensuring no overflow across all device viewports.
+- **Verification:**
+  - `flutter analyze`: 0 issues found.
+  - `flutter test`: 34/34 tests passed.

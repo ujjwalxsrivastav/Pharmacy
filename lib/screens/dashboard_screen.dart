@@ -790,62 +790,78 @@ class DashboardScreen extends ConsumerWidget {
     required bool isDesktop,
     required bool isTablet,
   }) {
-    final int crossAxisCount = isDesktop ? 4 : 2;
-    final double childAspectRatio = isDesktop ? 1.75 : 1.85;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final int crossAxisCount;
+        final double childAspectRatio;
 
-    return GridView.count(
-      crossAxisCount: crossAxisCount,
-      mainAxisSpacing: 14,
-      crossAxisSpacing: 14,
-      childAspectRatio: childAspectRatio,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        GestureDetector(
-          onTap: () => ref.read(selectedTabProvider.notifier).set(2),
-          child: GlassStatCard(
-            title: "Today's Revenue",
-            value: '₹${NumberFormat('#,##0.00').format(todayRevenue)}',
-            subtitle: '$todayOrdersCount orders today',
-            icon: Icons.currency_rupee_rounded,
-            gradient: AppColors.primaryGradient,
-            badgeText: todayOrdersCount > 0 ? 'Active' : 'Live',
-          ),
-        ),
-        GestureDetector(
-          onTap: () => ref.read(selectedTabProvider.notifier).set(1),
-          child: GlassStatCard(
-            title: 'Total Products',
-            value: '$medicinesCount',
-            subtitle: 'In inventory',
-            icon: Icons.inventory_2_rounded,
-            gradient: AppColors.coolGradient,
-            badgeText: 'Catalog',
-          ),
-        ),
-        GestureDetector(
-          onTap: () => ref.read(selectedTabProvider.notifier).set(4),
-          child: GlassStatCard(
-            title: 'Low Stock Items',
-            value: '$lowStock',
-            subtitle: 'Needs reorder',
-            icon: Icons.warning_amber_rounded,
-            gradient: AppColors.warmGradient,
-            badgeText: lowStock > 0 ? 'Reorder' : 'Healthy',
-          ),
-        ),
-        GestureDetector(
-          onTap: () => ref.read(selectedTabProvider.notifier).set(4),
-          child: GlassStatCard(
-            title: 'Expiring Soon',
-            value: '$expiring',
-            subtitle: 'Within 30 days',
-            icon: Icons.timer_outlined,
-            gradient: AppColors.accentGradient,
-            badgeText: expiring > 0 ? 'Alert' : 'Safe',
-          ),
-        ),
-      ],
+        if (width >= 960) {
+          crossAxisCount = 4;
+          childAspectRatio = 2.15;
+        } else if (width >= 600) {
+          crossAxisCount = 2;
+          childAspectRatio = 2.2;
+        } else {
+          crossAxisCount = 2;
+          childAspectRatio = 1.4;
+        }
+
+        return GridView.count(
+          crossAxisCount: crossAxisCount,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: childAspectRatio,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            GestureDetector(
+              onTap: () => ref.read(selectedTabProvider.notifier).set(2),
+              child: GlassStatCard(
+                title: "Today's Revenue",
+                value: '₹${NumberFormat('#,##0.00').format(todayRevenue)}',
+                subtitle: '$todayOrdersCount orders today',
+                icon: Icons.currency_rupee_rounded,
+                gradient: AppColors.primaryGradient,
+                badgeText: todayOrdersCount > 0 ? 'Active' : 'Live',
+              ),
+            ),
+            GestureDetector(
+              onTap: () => ref.read(selectedTabProvider.notifier).set(1),
+              child: GlassStatCard(
+                title: 'Total Products',
+                value: '$medicinesCount',
+                subtitle: 'In inventory',
+                icon: Icons.inventory_2_rounded,
+                gradient: AppColors.coolGradient,
+                badgeText: 'Catalog',
+              ),
+            ),
+            GestureDetector(
+              onTap: () => ref.read(selectedTabProvider.notifier).set(4),
+              child: GlassStatCard(
+                title: 'Low Stock Items',
+                value: '$lowStock',
+                subtitle: 'Needs reorder',
+                icon: Icons.warning_amber_rounded,
+                gradient: AppColors.warmGradient,
+                badgeText: lowStock > 0 ? 'Reorder' : 'Healthy',
+              ),
+            ),
+            GestureDetector(
+              onTap: () => ref.read(selectedTabProvider.notifier).set(4),
+              child: GlassStatCard(
+                title: 'Expiring Soon',
+                value: '$expiring',
+                subtitle: 'Within 30 days',
+                icon: Icons.timer_outlined,
+                gradient: AppColors.accentGradient,
+                badgeText: expiring > 0 ? 'Alert' : 'Safe',
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

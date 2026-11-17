@@ -429,6 +429,7 @@ class AuthService {
     GeoPoint? location,
     String? address,
     String? phone,
+    String? email,
     bool? isOpen,
     double? deliveryRadiusKm,
     String? gstin,
@@ -441,6 +442,10 @@ class AuthService {
       'handlerName': handlerName.trim(),
       'updatedAt': Timestamp.now(),
     };
+
+    if (email != null && email.trim().isNotEmpty) {
+      updateData['email'] = email.trim();
+    }
 
     if (location != null) {
       updateData['location'] = location;

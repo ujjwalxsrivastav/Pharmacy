@@ -93,13 +93,33 @@ class HomeShell extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
+                      if (authUser?.email != null && authUser!.email!.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            Icon(Icons.email_outlined, size: 12, color: colors.textSecondary),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                authUser.email!,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: colors.textSecondary),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                      ],
                       Text(
                         profile != null && (profile.area.isNotEmpty || profile.city.isNotEmpty)
                             ? '${profile.area}, ${profile.city}'
                             : 'Dehradun, Selaqui',
                         style: TextStyle(
                             fontSize: 12,
-                            color: colors.textSecondary),
+                            color: colors.textHint),
                       ),
                       const SizedBox(height: 2),
                       Text(
