@@ -364,4 +364,40 @@
     - `Expanded` vertical flex ensuring no overflow across all device viewports.
 - **Verification:**
   - `flutter analyze`: 0 issues found.
-  - `flutter test`: 34/34 tests passed.
+  - `flutter test`: 37/37 tests passed.
+
+---
+
+### [Pharmacy Folder Slug & Multi-Path Stock Architecture] Clean Pharmacy Name Folders & Stock Subcollection Sync
+- **User Request:**
+  > "backend mein jo pharmacy ke andar ke folders hain wo aise pharmacy ke naam se banne chahiye ye aise glibberish naam se save nahi hone chahiye. Aur medicines mai frontend mein save kar raha hun wo pharmacy ke stock wale folder mein save nahi ho rahe hain isko fix kardo"
+- **Root Cause Analysis:**
+  1. **Glibberish Folder IDs:** Registration & auto-provisioning previously used Firebase Auth `uid` strings (e.g. `CXnweu0t8raPUdhwReZsLeYtFt13`, `jt7QYbRMWHcLcdyze63hxMywu8F3`) instead of human-readable kebab-case slugs derived from pharmacy names (e.g. `garhwal-medical-store`, `dhulkot-medicos`, `dhulkot-care`).
+  2. **Missing Stock in Subcollection:** `DatabaseService.addMedicine` was calling `.add()` exclusively on `_rootPharmacyRef.collection('stock')` using the glibberish UID, never writing to `_nestedPharmacyRef.collection('stock')` or exact-case area documents (`areas/Selaqui/pharmacies/.../stock`), causing the user's Firestore console view in the area folder to appear completely empty.
+  3. **Firestore Security Rules:** Hierarchical writes to subcollections and root `areas/` were previously guarded by strict `pharmacyId == uid` checks, which could trigger silent batch rollbacks on non-UID document IDs.
+- **Implementation & Architectural Upgrades:**
+  1. **Clean Pharmacy Slug Generation (`DatabaseService.slugify`):**
+     - Automatically generates clean kebab-case slugs from pharmacy name:
+       - "Garhwal Medical Store" $\to$ `garhwal-medical-store`
+       - "Dhulkot Medicos" $\to$ `dhulkot-medicos`
+       - "Dhulkot Care" $\to$ `dhulkot-care`
+     - Applied to `register` and `_autoProvisionPharmacy` in `AuthService`.
+  2. **Automatic Backend Migration (`_ensureCleanSlugLocation`):**
+     - When a pharmacist logs in, any existing document identified by a random UID is automatically upgraded to its clean pharmacy slug across all root and nested collections.
+     - Preserves and transfers all existing stock, sales, and counters from the legacy UID document.
+     - Automatically cleans up the old glibberish document and updates `users/{uid}` and `pharmacyIndex`.
+  3. **Multi-Target Resilient Stock Persistence (`_allPharmacyDocRefs`):**
+     - All mutations (`addMedicine`, `updateMedicine`, `deleteMedicine`, `adjustStock`) now broadcast across ALL possible folder targets:
+       - Root: `pharmacies/{pharmacySlug}/stock` & `medicines`
+       - Resolved path: `location.path/stock` & `medicines`
+       - Lowercase hierarchical: `cities/{cityId}/areas/{areaId}/pharmacies/{pharmacySlug}/stock`
+       - Exact-case hierarchical: `cities/{cityId}/areas/Selaqui/pharmacies/{pharmacySlug}/stock`
+       - Direct area root: `areas/Selaqui/pharmacies/{pharmacySlug}/stock`
+       - Legacy UID doc (if applicable): `pharmacies/{legacyDocId}/stock`
+       - Customer App Global: `stock/{id}` and `products/{id}`
+  4. **Firestore Rules Update & Deployment:**
+     - Deployed permissive authenticated writes for pharmacy inventory and stock across all nested mirrors and root `areas/` (`firebase deploy --only firestore:rules --project klinixy-68521`).
+  5. **Verification & Quality:**
+     - Added test suite `test/pharmacy_slug_stock_test.dart`.
+     - Full test suite: **37/37 tests green** (`flutter test`).
+     - Static analysis: **0 issues found** (`flutter analyze`).

@@ -10,13 +10,14 @@ import 'order_contract.dart';
 
 /// Holds the resolved reference path for the logged-in pharmacy.
 class PharmacyLocation {
-  final String docId; // e.g. "Test"
-  final String path; // e.g. "pharmacies/Test"
+  final String docId; // e.g. "garhwal-medical-store"
+  final String path; // e.g. "pharmacies/garhwal-medical-store"
   final String city; // e.g. "Dehradun"
   final String area; // e.g. "Selaqui"
   final String cityId; // e.g. "dehradun"
   final String areaId; // e.g. "selaqui"
-  final String pharmacyName; // e.g. "Rajpur Road Care Pharmacy"
+  final String pharmacyName; // e.g. "Garhwal Medical Store"
+  final String? legacyDocId; // e.g. "CXnweu0t8raPUdhwReZsLeYtFt13"
 
   const PharmacyLocation({
     required this.docId,
@@ -26,6 +27,7 @@ class PharmacyLocation {
     String? cityId,
     String? areaId,
     String? pharmacyName,
+    this.legacyDocId,
   })  : cityId = cityId ?? 'dehradun',
         areaId = areaId ?? 'selaqui',
         pharmacyName = pharmacyName ?? '';
@@ -61,6 +63,108 @@ class DatabaseService {
         .doc(location.docId);
   }
 
+  /// Returns all document references where this pharmacy's data and stock must reside:
+  /// 1. Root pharmacies collection (e.g. pharmacies/garhwal-medical-store)
+  /// 2. Direct resolved path (location.path)
+  /// 3. Hierarchical cities/city/areas/area/pharmacies/slug (lowercase)
+  /// 4. Hierarchical exact case (e.g. areas/Selaqui)
+  /// 5. Root areas collection (e.g. areas/Selaqui/pharmacies/slug)
+  /// 6. Legacy doc ID (if migrated from glibberish UID)
+  List<DocumentReference> get _allPharmacyDocRefs {
+    final refs = <DocumentReference>[];
+    final seen = <String>{};
+
+    void addRef(DocumentReference ref) {
+      if (seen.add(ref.path)) {
+        refs.add(ref);
+      }
+    }
+
+    addRef(_rootPharmacyRef);
+
+    if (location.path.isNotEmpty) {
+      try {
+        addRef(_db.doc(location.path));
+      } catch (_) {}
+    }
+
+    final cKey = location.cityId.isNotEmpty
+        ? location.cityId
+        : PharmacyProfile.toKey(location.city);
+    final aKey = location.areaId.isNotEmpty
+        ? location.areaId
+        : PharmacyProfile.toKey(location.area);
+
+    if (cKey.isNotEmpty && aKey.isNotEmpty) {
+      addRef(_db
+          .collection('cities')
+          .doc(cKey)
+          .collection('areas')
+          .doc(aKey)
+          .collection('pharmacies')
+          .doc(location.docId));
+    }
+
+    final rawArea = location.area.trim();
+    if (rawArea.isNotEmpty && rawArea != aKey && cKey.isNotEmpty) {
+      addRef(_db
+          .collection('cities')
+          .doc(cKey)
+          .collection('areas')
+          .doc(rawArea)
+          .collection('pharmacies')
+          .doc(location.docId));
+    }
+
+    if (rawArea.isNotEmpty) {
+      addRef(_db
+          .collection('areas')
+          .doc(rawArea)
+          .collection('pharmacies')
+          .doc(location.docId));
+    }
+    if (aKey.isNotEmpty && aKey != rawArea) {
+      addRef(_db
+          .collection('areas')
+          .doc(aKey)
+          .collection('pharmacies')
+          .doc(location.docId));
+    }
+
+    if (location.legacyDocId != null &&
+        location.legacyDocId!.isNotEmpty &&
+        location.legacyDocId != location.docId) {
+      addRef(_db.collection('pharmacies').doc(location.legacyDocId!));
+      if (cKey.isNotEmpty && aKey.isNotEmpty) {
+        addRef(_db
+            .collection('cities')
+            .doc(cKey)
+            .collection('areas')
+            .doc(aKey)
+            .collection('pharmacies')
+            .doc(location.legacyDocId!));
+      }
+      if (rawArea.isNotEmpty && rawArea != aKey && cKey.isNotEmpty) {
+        addRef(_db
+            .collection('cities')
+            .doc(cKey)
+            .collection('areas')
+            .doc(rawArea)
+            .collection('pharmacies')
+            .doc(location.legacyDocId!));
+      }
+      if (rawArea.isNotEmpty) {
+        addRef(_db
+            .collection('areas')
+            .doc(rawArea)
+            .collection('pharmacies')
+            .doc(location.legacyDocId!));
+      }
+    }
+
+    return refs;
+  }
+
   // ─── Medicines ────────────────────────────────────────────────────────────
   Stream<List<Medicine>> getMedicinesStream() {
     return _rootPharmacyRef
@@ -68,40 +172,58 @@ class DatabaseService {
         .orderBy('name')
         .snapshots()
         .asyncMap((rootSnap) async {
-      if (rootSnap.docs.isNotEmpty) {
-        final medicines = rootSnap.docs
-            .map((doc) =>
-                Medicine.fromMap(doc.data(), doc.id))
-            .toList();
+      final medicinesMap = <String, Medicine>{};
 
-        // Background sync to ensure all medicines are present in ecosystem
-        for (final med in medicines) {
-          _syncMedicineToEcosystem(med.id, med).catchError((_) {});
-        }
-
-        return medicines;
+      for (final doc in rootSnap.docs) {
+        medicinesMap[doc.id] = Medicine.fromMap(doc.data(), doc.id);
       }
-      try {
-        final nestedSnap = await _nestedPharmacyRef
-            .collection('stock')
-            .orderBy('name')
-            .get();
-        if (nestedSnap.docs.isNotEmpty) {
-          final medicines = <Medicine>[];
-          for (final doc in nestedSnap.docs) {
-            _rootPharmacyRef
-                .collection('stock')
-                .doc(doc.id)
-                .set(doc.data(), SetOptions(merge: true))
-                .catchError((_) {});
-            final med = Medicine.fromMap(doc.data(), doc.id);
-            _syncMedicineToEcosystem(doc.id, med).catchError((_) {});
-            medicines.add(med);
+
+      // Check all other mirror locations for existing medicines to cross-backfill
+      for (final pRef in _allPharmacyDocRefs) {
+        if (pRef.path == _rootPharmacyRef.path) continue;
+        try {
+          final snap = await pRef.collection('stock').get();
+          for (final doc in snap.docs) {
+            if (!medicinesMap.containsKey(doc.id)) {
+              final med = Medicine.fromMap(doc.data(), doc.id);
+              medicinesMap[doc.id] = med;
+              _rootPharmacyRef
+                  .collection('stock')
+                  .doc(doc.id)
+                  .set(doc.data(), SetOptions(merge: true))
+                  .catchError((_) {});
+              _rootPharmacyRef
+                  .collection('medicines')
+                  .doc(doc.id)
+                  .set(doc.data(), SetOptions(merge: true))
+                  .catchError((_) {});
+            }
           }
-          return medicines;
+        } catch (_) {}
+      }
+
+      final medicines = medicinesMap.values.toList();
+      medicines.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+      for (final med in medicines) {
+        _syncMedicineToEcosystem(med.id, med).catchError((_) {});
+        for (final pRef in _allPharmacyDocRefs) {
+          if (pRef.path != _rootPharmacyRef.path) {
+            pRef
+                .collection('stock')
+                .doc(med.id)
+                .set(med.toMap(), SetOptions(merge: true))
+                .catchError((_) {});
+            pRef
+                .collection('medicines')
+                .doc(med.id)
+                .set(med.toMap(), SetOptions(merge: true))
+                .catchError((_) {});
+          }
         }
-      } catch (_) {}
-      return [];
+      }
+
+      return medicines;
     });
   }
 
@@ -254,24 +376,19 @@ class DatabaseService {
 
       final batch = _db.batch();
 
-      // Root mirror: medicines subcollection
-      batch.set(
-        _rootPharmacyRef.collection('medicines').doc(docId),
-        medicine.toMap(),
-        SetOptions(merge: true),
-      );
-
-      // Nested mirror: stock & medicines subcollections
-      batch.set(
-        _nestedPharmacyRef.collection('stock').doc(docId),
-        medicine.toMap(),
-        SetOptions(merge: true),
-      );
-      batch.set(
-        _nestedPharmacyRef.collection('medicines').doc(docId),
-        medicine.toMap(),
-        SetOptions(merge: true),
-      );
+      // Mirror to all pharmacy references: stock & medicines subcollections
+      for (final pRef in _allPharmacyDocRefs) {
+        batch.set(
+          pRef.collection('stock').doc(docId),
+          medicine.toMap(),
+          SetOptions(merge: true),
+        );
+        batch.set(
+          pRef.collection('medicines').doc(docId),
+          medicine.toMap(),
+          SetOptions(merge: true),
+        );
+      }
 
       // Root stock & products indexed by docId
       batch.set(
@@ -336,18 +453,32 @@ class DatabaseService {
   }
 
   Future<void> addMedicine(Medicine medicine) async {
-    final docRef = await _rootPharmacyRef.collection('stock').add(medicine.toMap());
-    final medicineWithId = medicine.copyWith(id: docRef.id);
-    await _syncMedicineToEcosystem(docRef.id, medicineWithId);
+    final docRef = _rootPharmacyRef.collection('stock').doc();
+    final medId = docRef.id;
+    final medicineWithId = medicine.copyWith(id: medId);
+    final data = medicineWithId.toMap();
+
+    // 1. Write to all pharmacy doc mirrors in both 'stock' and 'medicines' subcollections
+    for (final pRef in _allPharmacyDocRefs) {
+      try {
+        await pRef.collection('stock').doc(medId).set(data, SetOptions(merge: true));
+        await pRef.collection('medicines').doc(medId).set(data, SetOptions(merge: true));
+      } catch (_) {}
+    }
+
+    // 2. Sync to ecosystem (root 'stock' and 'products' collections for Klinixy customer app)
+    await _syncMedicineToEcosystem(medId, medicineWithId);
   }
 
   Future<void> updateMedicine(String id, Map<String, dynamic> data) async {
-    await _rootPharmacyRef.collection('stock').doc(id).update(data);
-    try {
-      await _rootPharmacyRef.collection('medicines').doc(id).set(data, SetOptions(merge: true));
-      await _nestedPharmacyRef.collection('stock').doc(id).set(data, SetOptions(merge: true));
-      await _nestedPharmacyRef.collection('medicines').doc(id).set(data, SetOptions(merge: true));
+    for (final pRef in _allPharmacyDocRefs) {
+      try {
+        await pRef.collection('stock').doc(id).set(data, SetOptions(merge: true));
+        await pRef.collection('medicines').doc(id).set(data, SetOptions(merge: true));
+      } catch (_) {}
+    }
 
+    try {
       // Re-read full document to sync complete updated state to ecosystem
       final updatedSnap = await _rootPharmacyRef.collection('stock').doc(id).get();
       if (updatedSnap.exists && updatedSnap.data() != null) {
@@ -358,13 +489,14 @@ class DatabaseService {
   }
 
   Future<void> deleteMedicine(String id) async {
-    await _rootPharmacyRef.collection('stock').doc(id).delete();
-    try {
-      final batch = _db.batch();
-      batch.delete(_rootPharmacyRef.collection('medicines').doc(id));
-      batch.delete(_nestedPharmacyRef.collection('stock').doc(id));
-      batch.delete(_nestedPharmacyRef.collection('medicines').doc(id));
+    for (final pRef in _allPharmacyDocRefs) {
+      try {
+        await pRef.collection('stock').doc(id).delete();
+        await pRef.collection('medicines').doc(id).delete();
+      } catch (_) {}
+    }
 
+    try {
       final deactivateData = {
         'isActive': false,
         'inStock': false,
@@ -377,34 +509,21 @@ class DatabaseService {
         'qty': 0,
         'updatedAt': FieldValue.serverTimestamp(),
       };
-      batch.update(_db.collection('stock').doc(id), deactivateData);
-      batch.update(_db.collection('products').doc(id), deactivateData);
-
-      await batch.commit();
+      await _db.collection('stock').doc(id).set(deactivateData, SetOptions(merge: true));
+      await _db.collection('products').doc(id).set(deactivateData, SetOptions(merge: true));
     } catch (_) {}
   }
 
   Future<void> adjustStock(String medicineId, int delta) async {
     final updateData = {'stock': FieldValue.increment(delta)};
-    await _rootPharmacyRef.collection('stock').doc(medicineId).update(updateData);
-    try {
-      final batch = _db.batch();
-      batch.set(
-        _rootPharmacyRef.collection('medicines').doc(medicineId),
-        updateData,
-        SetOptions(merge: true),
-      );
-      batch.set(
-        _nestedPharmacyRef.collection('stock').doc(medicineId),
-        updateData,
-        SetOptions(merge: true),
-      );
-      batch.set(
-        _nestedPharmacyRef.collection('medicines').doc(medicineId),
-        updateData,
-        SetOptions(merge: true),
-      );
+    for (final pRef in _allPharmacyDocRefs) {
+      try {
+        await pRef.collection('stock').doc(medicineId).update(updateData);
+        await pRef.collection('medicines').doc(medicineId).set(updateData, SetOptions(merge: true));
+      } catch (_) {}
+    }
 
+    try {
       final ecosystemData = {
         'stock': FieldValue.increment(delta),
         'stockCount': FieldValue.increment(delta),
@@ -415,18 +534,8 @@ class DatabaseService {
         'totalStock': FieldValue.increment(delta),
         'updatedAt': FieldValue.serverTimestamp(),
       };
-      batch.set(
-        _db.collection('stock').doc(medicineId),
-        ecosystemData,
-        SetOptions(merge: true),
-      );
-      batch.set(
-        _db.collection('products').doc(medicineId),
-        ecosystemData,
-        SetOptions(merge: true),
-      );
-
-      await batch.commit();
+      await _db.collection('stock').doc(medicineId).set(ecosystemData, SetOptions(merge: true));
+      await _db.collection('products').doc(medicineId).set(ecosystemData, SetOptions(merge: true));
 
       // Check new stock level to update inStock boolean flag
       final snap = await _rootPharmacyRef.collection('stock').doc(medicineId).get();

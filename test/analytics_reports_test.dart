@@ -110,7 +110,7 @@ void main() {
         totalPrice: 112.0,
         subtotal: 100.0,
         taxAmount: 12.0,
-        date: now.subtract(const Duration(days: 3)),
+        date: DateTime(now.year, now.month, now.day - 3, 10, 0), // 10:00 AM (different hour)
         billType: 'pakka',
         items: [
           SaleItem(

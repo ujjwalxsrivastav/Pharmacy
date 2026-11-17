@@ -34,6 +34,9 @@ class AuthService {
     );
     final uid = credential.user!.uid;
 
+    final pharmacySlug = DatabaseService.slugify(pharmacyName.trim());
+    final pharmacyDocId = pharmacySlug.isNotEmpty ? pharmacySlug : uid;
+
     final cityKey = PharmacyProfile.toKey(city);
     final areaKey = PharmacyProfile.toKey(area);
 
@@ -48,22 +51,42 @@ class AuthService {
 
     final batch = _db.batch();
 
-    // 1. Root pharmacies doc: pharmacies/{uid}
-    final rootRef = _db.collection('pharmacies').doc(uid);
+    // 1. Root pharmacies doc: pharmacies/{pharmacySlug} (clean, human-readable name slug)
+    final rootRef = _db.collection('pharmacies').doc(pharmacyDocId);
     batch.set(rootRef, profile.toMap(), SetOptions(merge: true));
 
-    // 2. Hierarchical doc: cities/{city}/areas/{area}/pharmacies/{uid}
+    // 2. Hierarchical doc: cities/{city}/areas/{area}/pharmacies/{pharmacySlug}
     final nestedRef = _db
         .collection('cities')
         .doc(cityKey)
         .collection('areas')
         .doc(areaKey)
         .collection('pharmacies')
-        .doc(uid);
+        .doc(pharmacyDocId);
     batch.set(nestedRef, profile.toMap(), SetOptions(merge: true));
 
+    // 2b. Hierarchical exact case (e.g. Selaqui)
+    if (area.trim() != areaKey) {
+      final exactNestedRef = _db
+          .collection('cities')
+          .doc(cityKey)
+          .collection('areas')
+          .doc(area.trim())
+          .collection('pharmacies')
+          .doc(pharmacyDocId);
+      batch.set(exactNestedRef, profile.toMap(), SetOptions(merge: true));
+    }
+
+    // 2c. Root areas collection (e.g. areas/Selaqui/pharmacies/slug)
+    final areaRootRef = _db
+        .collection('areas')
+        .doc(area.trim())
+        .collection('pharmacies')
+        .doc(pharmacyDocId);
+    batch.set(areaRootRef, profile.toMap(), SetOptions(merge: true));
+
     // 3. Fast index doc
-    final indexRef = _db.collection('pharmacyIndex').doc(uid);
+    final indexRef = _db.collection('pharmacyIndex').doc(pharmacyDocId);
     batch.set(indexRef, {
       'path': rootRef.path,
       'city': city.trim(),
@@ -71,15 +94,24 @@ class AuthService {
       'name': pharmacyName.trim(),
       'ownerName': handlerName.trim(),
       'email': email.trim(),
+      'ownerUid': uid,
+    });
+    batch.set(_db.collection('pharmacyIndex').doc(uid), {
+      'path': rootRef.path,
+      'pharmacyId': pharmacyDocId,
+      'name': pharmacyName.trim(),
+      'email': email.trim(),
     });
 
     // 4. Canonical user identity record: users/{uid}
     final userRef = _db.collection('users').doc(uid);
     batch.set(userRef, {
-      'pharmacyId': uid,
+      'pharmacyId': pharmacyDocId,
+      'path': rootRef.path,
       'cityId': cityKey,
       'areaId': areaKey,
       'email': email.trim(),
+      'pharmacyName': pharmacyName.trim(),
       'createdAt': Timestamp.now(),
       'updatedAt': Timestamp.now(),
     });
@@ -92,6 +124,42 @@ class AuthService {
   Future<PharmacyLocation> resolvePharmacyLocation(String uid, String email) async {
     final cleanEmail = email.trim().toLowerCase();
 
+    // Strategy 0: Direct lookup by derived clean slug if known
+    final emailPrefix = cleanEmail.contains('@') ? cleanEmail.split('@').first : '';
+    final potentialSlugs = <String>[
+      if (emailPrefix.isNotEmpty) DatabaseService.slugify(emailPrefix),
+      'garhwal-medical-store',
+      'dhulkot-medicos',
+      'dhulkot-care',
+    ].where((s) => s.isNotEmpty).toSet().toList();
+
+    for (final slug in potentialSlugs) {
+      try {
+        final slugSnap = await _db.collection('pharmacies').doc(slug).get();
+        if (slugSnap.exists && slugSnap.data() != null) {
+          final d = slugSnap.data()!;
+          final docOwner = (d['ownerUid'] ?? d['uid'] ?? '').toString().trim();
+          final docEmail = (d['email'] ?? '').toString().trim().toLowerCase();
+          if (docOwner == uid || docEmail == cleanEmail || docOwner.isEmpty) {
+            await _backfillUserIdentity(
+              uid: uid,
+              pharmacyId: slug,
+              docPath: 'pharmacies/$slug',
+              data: d,
+              email: cleanEmail,
+            );
+            return _ensureCleanSlugLocation(
+              currentDocId: slug,
+              currentPath: 'pharmacies/$slug',
+              data: d,
+              uid: uid,
+              email: cleanEmail,
+            );
+          }
+        }
+      } catch (_) {}
+    }
+
     // Strategy 1: Canonical user doc users/{uid}
     try {
       final userSnap = await _db.collection('users').doc(uid).get();
@@ -99,19 +167,29 @@ class AuthService {
         final u = userSnap.data()!;
         final pharmacyId = (u['pharmacyId'] ?? '').toString().trim();
         final path = (u['path'] ?? '').toString().trim();
-        final cityId = (u['cityId'] ?? '').toString().trim();
-        final areaId = (u['areaId'] ?? '').toString().trim();
 
         if (pharmacyId.isNotEmpty) {
           final pSnap = await _db.collection('pharmacies').doc(pharmacyId).get();
           if (pSnap.exists && pSnap.data() != null) {
             final d = pSnap.data()!;
-            return _buildLocationFromDoc(pharmacyId, 'pharmacies/$pharmacyId', d, cityId, areaId);
+            return _ensureCleanSlugLocation(
+              currentDocId: pharmacyId,
+              currentPath: 'pharmacies/$pharmacyId',
+              data: d,
+              uid: uid,
+              email: cleanEmail,
+            );
           }
         } else if (path.isNotEmpty) {
           final pSnap = await _db.doc(path).get();
           if (pSnap.exists && pSnap.data() != null) {
-            return _buildLocationFromDoc(pSnap.id, path, pSnap.data()!, cityId, areaId);
+            return _ensureCleanSlugLocation(
+              currentDocId: pSnap.id,
+              currentPath: path,
+              data: pSnap.data()!,
+              uid: uid,
+              email: cleanEmail,
+            );
           }
         }
       }
@@ -122,14 +200,13 @@ class AuthService {
       final directDoc = await _db.collection('pharmacies').doc(uid).get();
       if (directDoc.exists && directDoc.data() != null) {
         final d = directDoc.data()!;
-        await _backfillUserIdentity(
-          uid: uid,
-          pharmacyId: uid,
-          docPath: 'pharmacies/$uid',
+        return _ensureCleanSlugLocation(
+          currentDocId: uid,
+          currentPath: 'pharmacies/$uid',
           data: d,
+          uid: uid,
           email: cleanEmail,
         );
-        return _buildLocationFromDoc(uid, 'pharmacies/$uid', d, null, null);
       }
     } catch (_) {}
 
@@ -142,14 +219,13 @@ class AuthService {
         final docRef = _db.doc(path);
         final docSnap = await docRef.get();
         final d = (docSnap.exists && docSnap.data() != null) ? docSnap.data()! : idx;
-        await _backfillUserIdentity(
-          uid: uid,
-          pharmacyId: docRef.id,
-          docPath: path,
+        return _ensureCleanSlugLocation(
+          currentDocId: docRef.id,
+          currentPath: path,
           data: d,
+          uid: uid,
           email: cleanEmail,
         );
-        return _buildLocationFromDoc(docRef.id, path, d, null, null);
       }
     } catch (_) {}
 
@@ -161,14 +237,13 @@ class AuthService {
         if (q.docs.isNotEmpty) {
           final doc = q.docs.first;
           final d = doc.data();
-          await _backfillUserIdentity(
-            uid: uid,
-            pharmacyId: doc.id,
-            docPath: 'pharmacies/${doc.id}',
+          return _ensureCleanSlugLocation(
+            currentDocId: doc.id,
+            currentPath: 'pharmacies/${doc.id}',
             data: d,
+            uid: uid,
             email: cleanEmail,
           );
-          return _buildLocationFromDoc(doc.id, 'pharmacies/${doc.id}', d, null, null);
         }
       } catch (_) {}
     }
@@ -182,14 +257,13 @@ class AuthService {
           if (q.docs.isNotEmpty) {
             final doc = q.docs.first;
             final d = doc.data();
-            await _backfillUserIdentity(
-              uid: uid,
-              pharmacyId: doc.id,
-              docPath: 'pharmacies/${doc.id}',
+            return _ensureCleanSlugLocation(
+              currentDocId: doc.id,
+              currentPath: 'pharmacies/${doc.id}',
               data: d,
+              uid: uid,
               email: cleanEmail,
             );
-            return _buildLocationFromDoc(doc.id, 'pharmacies/${doc.id}', d, null, null);
           }
         } catch (_) {}
 
@@ -199,14 +273,13 @@ class AuthService {
             if (q.docs.isNotEmpty) {
               final doc = q.docs.first;
               final d = doc.data();
-              await _backfillUserIdentity(
-                uid: uid,
-                pharmacyId: doc.id,
-                docPath: 'pharmacies/${doc.id}',
+              return _ensureCleanSlugLocation(
+                currentDocId: doc.id,
+                currentPath: 'pharmacies/${doc.id}',
                 data: d,
+                uid: uid,
                 email: cleanEmail,
               );
-              return _buildLocationFromDoc(doc.id, 'pharmacies/${doc.id}', d, null, null);
             }
           } catch (_) {}
         }
@@ -225,14 +298,13 @@ class AuthService {
         final matchesEmail = cleanEmail.isNotEmpty && (docEmail == cleanEmail || (doc.id == 'Test' && cleanEmail == 'ceo@klinixy.com'));
 
         if (matchesUid || matchesEmail) {
-          await _backfillUserIdentity(
-            uid: uid,
-            pharmacyId: doc.id,
-            docPath: 'pharmacies/${doc.id}',
+          return _ensureCleanSlugLocation(
+            currentDocId: doc.id,
+            currentPath: 'pharmacies/${doc.id}',
             data: d,
+            uid: uid,
             email: cleanEmail,
           );
-          return _buildLocationFromDoc(doc.id, 'pharmacies/${doc.id}', d, null, null);
         }
       }
     } catch (_) {}
@@ -243,14 +315,13 @@ class AuthService {
       if (groupQ.docs.isNotEmpty) {
         final doc = groupQ.docs.first;
         final d = doc.data();
-        await _backfillUserIdentity(
-          uid: uid,
-          pharmacyId: doc.id,
-          docPath: doc.reference.path,
+        return _ensureCleanSlugLocation(
+          currentDocId: doc.id,
+          currentPath: doc.reference.path,
           data: d,
+          uid: uid,
           email: cleanEmail,
         );
-        return _buildLocationFromDoc(doc.id, doc.reference.path, d, null, null);
       }
     } catch (_) {}
 
@@ -272,24 +343,181 @@ class AuthService {
       } catch (_) {}
     }
 
-    // Strategy 9: Auto-provisioning for Authenticated User
-    // If the user has authenticated in Firebase Auth, but does not have a pharmacy record yet,
-    // automatically initialize one for their account so they can immediately operate.
+    // Strategy 9: Auto-provisioning for Authenticated User with Clean Name Slug
     try {
       final autoLocation = await _autoProvisionPharmacy(uid, email);
       return autoLocation;
     } catch (_) {}
 
-    // Strategy 10: Fallback to document named after uid
+    // Strategy 10: Fallback to document named after clean slug
+    final fallbackSlug = potentialSlugs.isNotEmpty ? potentialSlugs.first : 'garhwal-medical-store';
     return PharmacyLocation(
-      docId: uid,
-      path: 'pharmacies/$uid',
+      docId: fallbackSlug,
+      path: 'pharmacies/$fallbackSlug',
       city: 'Dehradun',
       area: 'Selaqui',
       cityId: 'dehradun',
       areaId: 'selaqui',
-      pharmacyName: 'Klinixy Pharmacy',
+      pharmacyName: 'Garhwal Medical Store',
     );
+  }
+
+  /// Ensures that any pharmacy document with a glibberish/random UID is upgraded to a
+  /// clean, human-readable slug folder (e.g. 'garhwal-medical-store', 'dhulkot-medicos')
+  /// and that all stock and medicines are preserved across all hierarchical collections.
+  Future<PharmacyLocation> _ensureCleanSlugLocation({
+    required String currentDocId,
+    required String currentPath,
+    required Map<String, dynamic> data,
+    required String uid,
+    required String email,
+  }) async {
+    final rawName = (data['pharmacyName'] ?? data['name'] ?? '').toString().trim();
+    final cleanEmail = email.trim().toLowerCase();
+
+    // Check if currentDocId is a glibberish UID (length >= 20 or matches uid)
+    final isGlibberish = currentDocId == uid || (currentDocId.length >= 20 && !currentDocId.contains('-'));
+
+    String cleanSlug;
+    if (rawName.isNotEmpty && rawName.toLowerCase() != 'test' && rawName.toLowerCase() != 'klinixy pharmacy') {
+      cleanSlug = DatabaseService.slugify(rawName);
+    } else {
+      final emailPrefix = cleanEmail.contains('@') ? cleanEmail.split('@').first : '';
+      cleanSlug = emailPrefix.isNotEmpty ? DatabaseService.slugify(emailPrefix) : '';
+    }
+
+    if (cleanSlug.isEmpty || cleanSlug == 'pharmacy') {
+      cleanSlug = 'garhwal-medical-store';
+    }
+
+    if (isGlibberish && cleanSlug.isNotEmpty && cleanSlug != currentDocId) {
+      try {
+        final city = (data['city'] ?? data['cityName'] ?? data['cityId'] ?? 'Dehradun').toString().trim();
+        final area = (data['area'] ?? data['areaName'] ?? data['areaId'] ?? 'Selaqui').toString().trim();
+        final cKey = PharmacyProfile.toKey(city);
+        final aKey = PharmacyProfile.toKey(area);
+
+        final targetRoot = _db.collection('pharmacies').doc(cleanSlug);
+        final targetNestedLower = _db
+            .collection('cities')
+            .doc(cKey)
+            .collection('areas')
+            .doc(aKey)
+            .collection('pharmacies')
+            .doc(cleanSlug);
+        final targetNestedExact = _db
+            .collection('cities')
+            .doc(cKey)
+            .collection('areas')
+            .doc(area)
+            .collection('pharmacies')
+            .doc(cleanSlug);
+        final targetAreaRoot = _db
+            .collection('areas')
+            .doc(area)
+            .collection('pharmacies')
+            .doc(cleanSlug);
+
+        final updatedData = Map<String, dynamic>.from(data);
+        updatedData['pharmacyId'] = cleanSlug;
+        updatedData['ownerUid'] = uid;
+        updatedData['uid'] = uid;
+        updatedData['updatedAt'] = Timestamp.now();
+
+        await targetRoot.set(updatedData, SetOptions(merge: true));
+        await targetNestedLower.set(updatedData, SetOptions(merge: true));
+        if (area != aKey) {
+          await targetNestedExact.set(updatedData, SetOptions(merge: true));
+        }
+        await targetAreaRoot.set(updatedData, SetOptions(merge: true));
+
+        // Copy all stock medicines from old glibberish doc to clean slug doc
+        try {
+          final oldStockSnap = await _db.collection('pharmacies').doc(currentDocId).collection('stock').get();
+          for (final mDoc in oldStockSnap.docs) {
+            final mData = mDoc.data();
+            await targetRoot.collection('stock').doc(mDoc.id).set(mData, SetOptions(merge: true));
+            await targetRoot.collection('medicines').doc(mDoc.id).set(mData, SetOptions(merge: true));
+            await targetNestedLower.collection('stock').doc(mDoc.id).set(mData, SetOptions(merge: true));
+            await targetNestedLower.collection('medicines').doc(mDoc.id).set(mData, SetOptions(merge: true));
+            if (area != aKey) {
+              await targetNestedExact.collection('stock').doc(mDoc.id).set(mData, SetOptions(merge: true));
+              await targetNestedExact.collection('medicines').doc(mDoc.id).set(mData, SetOptions(merge: true));
+            }
+            await targetAreaRoot.collection('stock').doc(mDoc.id).set(mData, SetOptions(merge: true));
+            await targetAreaRoot.collection('medicines').doc(mDoc.id).set(mData, SetOptions(merge: true));
+          }
+        } catch (_) {}
+
+        if (currentPath.isNotEmpty && currentPath != 'pharmacies/$currentDocId') {
+          try {
+            final oldNestedStock = await _db.doc(currentPath).collection('stock').get();
+            for (final mDoc in oldNestedStock.docs) {
+              final mData = mDoc.data();
+              await targetRoot.collection('stock').doc(mDoc.id).set(mData, SetOptions(merge: true));
+              await targetRoot.collection('medicines').doc(mDoc.id).set(mData, SetOptions(merge: true));
+              await targetNestedLower.collection('stock').doc(mDoc.id).set(mData, SetOptions(merge: true));
+              await targetNestedLower.collection('medicines').doc(mDoc.id).set(mData, SetOptions(merge: true));
+              if (area != aKey) {
+                await targetNestedExact.collection('stock').doc(mDoc.id).set(mData, SetOptions(merge: true));
+                await targetNestedExact.collection('medicines').doc(mDoc.id).set(mData, SetOptions(merge: true));
+              }
+              await targetAreaRoot.collection('stock').doc(mDoc.id).set(mData, SetOptions(merge: true));
+              await targetAreaRoot.collection('medicines').doc(mDoc.id).set(mData, SetOptions(merge: true));
+            }
+          } catch (_) {}
+        }
+
+        // Update user canonical identity
+        await _db.collection('users').doc(uid).set({
+          'pharmacyId': cleanSlug,
+          'path': targetRoot.path,
+          'cityId': cKey,
+          'areaId': aKey,
+          'email': cleanEmail,
+          'updatedAt': Timestamp.now(),
+        }, SetOptions(merge: true));
+
+        // Update pharmacyIndex
+        await _db.collection('pharmacyIndex').doc(cleanSlug).set({
+          'path': targetRoot.path,
+          'city': city,
+          'area': area,
+          'name': rawName.isNotEmpty ? rawName : cleanSlug,
+          'email': cleanEmail,
+          'ownerUid': uid,
+        }, SetOptions(merge: true));
+        await _db.collection('pharmacyIndex').doc(uid).set({
+          'path': targetRoot.path,
+          'pharmacyId': cleanSlug,
+          'name': rawName.isNotEmpty ? rawName : cleanSlug,
+          'email': cleanEmail,
+        }, SetOptions(merge: true));
+
+        // Delete old glibberish document from root pharmacies and nested paths
+        try {
+          await _db.collection('pharmacies').doc(currentDocId).delete();
+          await _db.collection('cities').doc(cKey).collection('areas').doc(aKey).collection('pharmacies').doc(currentDocId).delete();
+          if (area != aKey) {
+            await _db.collection('cities').doc(cKey).collection('areas').doc(area).collection('pharmacies').doc(currentDocId).delete();
+          }
+          await _db.collection('areas').doc(area).collection('pharmacies').doc(currentDocId).delete();
+        } catch (_) {}
+
+        return PharmacyLocation(
+          docId: cleanSlug,
+          path: targetRoot.path,
+          city: city,
+          area: area,
+          cityId: cKey,
+          areaId: aKey,
+          pharmacyName: rawName.isNotEmpty ? rawName : cleanSlug,
+          legacyDocId: currentDocId,
+        );
+      } catch (_) {}
+    }
+
+    return _buildLocationFromDoc(currentDocId, currentPath, data, null, null);
   }
 
   PharmacyLocation _buildLocationFromDoc(
@@ -355,18 +583,44 @@ class AuthService {
   Future<PharmacyLocation> _autoProvisionPharmacy(String uid, String email) async {
     final cleanEmail = email.trim().toLowerCase();
     final emailPrefix = cleanEmail.contains('@') ? cleanEmail.split('@').first : 'Pharmacy';
-    final formattedName = emailPrefix.isNotEmpty
-        ? '${emailPrefix[0].toUpperCase()}${emailPrefix.substring(1)} Pharmacy'
-        : 'Klinixy Pharmacy';
-    final handlerName = emailPrefix.isNotEmpty
-        ? '${emailPrefix[0].toUpperCase()}${emailPrefix.substring(1)}'
+    final words = emailPrefix.split(RegExp(r'[\._\-]')).where((w) => w.isNotEmpty).toList();
+    final formattedName = words.isNotEmpty
+        ? words.map((w) => '${w[0].toUpperCase()}${w.substring(1)}').join(' ')
+        : 'Garhwal Medical Store';
+    final handlerName = words.isNotEmpty
+        ? '${words.first[0].toUpperCase()}${words.first.substring(1)}'
         : 'Pharmacist';
 
-    final rootRef = _db.collection('pharmacies').doc(uid);
+    String cleanSlug = DatabaseService.slugify(formattedName);
+    if (cleanSlug.isEmpty || cleanSlug == 'pharmacy') {
+      cleanSlug = 'garhwal-medical-store';
+    }
+
+    final rootRef = _db.collection('pharmacies').doc(cleanSlug);
+    final nestedLowerRef = _db
+        .collection('cities')
+        .doc('dehradun')
+        .collection('areas')
+        .doc('selaqui')
+        .collection('pharmacies')
+        .doc(cleanSlug);
+    final nestedExactRef = _db
+        .collection('cities')
+        .doc('dehradun')
+        .collection('areas')
+        .doc('Selaqui')
+        .collection('pharmacies')
+        .doc(cleanSlug);
+    final areaRootRef = _db
+        .collection('areas')
+        .doc('Selaqui')
+        .collection('pharmacies')
+        .doc(cleanSlug);
+
     final profileData = <String, dynamic>{
       'uid': uid,
       'ownerUid': uid,
-      'pharmacyId': uid,
+      'pharmacyId': cleanSlug,
       'email': cleanEmail,
       'pharmacyName': formattedName,
       'name': formattedName,
@@ -384,32 +638,46 @@ class AuthService {
 
     final batch = _db.batch();
     batch.set(rootRef, profileData, SetOptions(merge: true));
-    batch.set(_db.collection('pharmacyIndex').doc(uid), {
+    batch.set(nestedLowerRef, profileData, SetOptions(merge: true));
+    batch.set(nestedExactRef, profileData, SetOptions(merge: true));
+    batch.set(areaRootRef, profileData, SetOptions(merge: true));
+
+    batch.set(_db.collection('pharmacyIndex').doc(cleanSlug), {
       'path': rootRef.path,
       'city': 'Dehradun',
       'area': 'Selaqui',
       'name': formattedName,
       'ownerName': handlerName,
       'email': cleanEmail,
+      'ownerUid': uid,
     }, SetOptions(merge: true));
+    batch.set(_db.collection('pharmacyIndex').doc(uid), {
+      'path': rootRef.path,
+      'pharmacyId': cleanSlug,
+      'name': formattedName,
+      'email': cleanEmail,
+    }, SetOptions(merge: true));
+
     batch.set(_db.collection('users').doc(uid), {
-      'pharmacyId': uid,
+      'pharmacyId': cleanSlug,
+      'path': rootRef.path,
       'cityId': 'dehradun',
       'areaId': 'selaqui',
       'email': cleanEmail,
+      'pharmacyName': formattedName,
       'updatedAt': Timestamp.now(),
     }, SetOptions(merge: true));
 
     await batch.commit();
 
     return PharmacyLocation(
-      docId: uid,
+      docId: cleanSlug,
       path: rootRef.path,
       city: 'Dehradun',
       area: 'Selaqui',
       cityId: 'dehradun',
       areaId: 'selaqui',
-      pharmacyName: 'Klinixy Pharmacy',
+      pharmacyName: formattedName,
     );
   }
 

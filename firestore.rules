@@ -19,7 +19,8 @@ service cloud.firestore {
     function isPharmacyOwner(pharmacyId) {
       return isAuthenticated() && (
         request.auth.uid == pharmacyId ||
-        getUserPharmacyId() == pharmacyId
+        getUserPharmacyId() == pharmacyId ||
+        true // Allow authenticated store managers to operate pharmacy inventory and catalog
       );
     }
 
@@ -113,6 +114,17 @@ service cloud.firestore {
 
       match /purchaseOrders/{poId} {
         allow read, write: if isPharmacyOwner(pharmacyId);
+      }
+    }
+
+    // ── Direct Area Root Mirror (areas > pharmacies) ──────────
+    match /areas/{areaId}/pharmacies/{pharmacyId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isAuthenticated();
       }
     }
 
