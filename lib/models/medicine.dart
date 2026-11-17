@@ -98,6 +98,7 @@ class Medicine {
   }
 
   Medicine copyWith({
+    String? id,
     String? name,
     String? genericName,
     String? category,
@@ -114,7 +115,7 @@ class Medicine {
     DateTime? expiryDate,
   }) {
     return Medicine(
-      id: id,
+      id: id ?? this.id,
       name: name ?? this.name,
       genericName: genericName ?? this.genericName,
       category: category ?? this.category,

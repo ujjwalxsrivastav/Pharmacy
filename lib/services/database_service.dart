@@ -16,6 +16,7 @@ class PharmacyLocation {
   final String area; // e.g. "Selaqui"
   final String cityId; // e.g. "dehradun"
   final String areaId; // e.g. "selaqui"
+  final String pharmacyName; // e.g. "Rajpur Road Care Pharmacy"
 
   const PharmacyLocation({
     required this.docId,
@@ -24,15 +25,20 @@ class PharmacyLocation {
     required this.area,
     String? cityId,
     String? areaId,
+    String? pharmacyName,
   })  : cityId = cityId ?? 'dehradun',
-        areaId = areaId ?? 'selaqui';
+        areaId = areaId ?? 'selaqui',
+        pharmacyName = pharmacyName ?? '';
 }
 
 class DatabaseService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore? _firestore;
   final PharmacyLocation location;
 
-  DatabaseService({required this.location});
+  DatabaseService({required this.location, FirebaseFirestore? firestore})
+      : _firestore = firestore;
+
+  FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;
 
   String get pharmacyId => location.docId;
 
@@ -63,10 +69,17 @@ class DatabaseService {
         .snapshots()
         .asyncMap((rootSnap) async {
       if (rootSnap.docs.isNotEmpty) {
-        return rootSnap.docs
+        final medicines = rootSnap.docs
             .map((doc) =>
                 Medicine.fromMap(doc.data(), doc.id))
             .toList();
+
+        // Background sync to ensure all medicines are present in ecosystem
+        for (final med in medicines) {
+          _syncMedicineToEcosystem(med.id, med).catchError((_) {});
+        }
+
+        return medicines;
       }
       try {
         final nestedSnap = await _nestedPharmacyRef
@@ -74,44 +87,300 @@ class DatabaseService {
             .orderBy('name')
             .get();
         if (nestedSnap.docs.isNotEmpty) {
+          final medicines = <Medicine>[];
           for (final doc in nestedSnap.docs) {
             _rootPharmacyRef
                 .collection('stock')
                 .doc(doc.id)
                 .set(doc.data(), SetOptions(merge: true))
                 .catchError((_) {});
+            final med = Medicine.fromMap(doc.data(), doc.id);
+            _syncMedicineToEcosystem(doc.id, med).catchError((_) {});
+            medicines.add(med);
           }
-          return nestedSnap.docs
-              .map((doc) =>
-                  Medicine.fromMap(doc.data(), doc.id))
-              .toList();
+          return medicines;
         }
       } catch (_) {}
       return [];
     });
   }
 
+  String get pharmacyName => location.pharmacyName.isNotEmpty
+      ? location.pharmacyName
+      : location.docId;
+
+  static String slugify(String text) {
+    return text
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+  }
+
+  Map<String, dynamic> buildEcosystemStockPayload({
+    required String id,
+    required Medicine medicine,
+    required String slug,
+  }) {
+    final cleanName = medicine.name.trim();
+    final brandOrVerified = medicine.manufacturer.trim().isNotEmpty
+        ? medicine.manufacturer.trim()
+        : 'Klinixy Verified';
+    final genericOrName = medicine.genericName.trim().isNotEmpty
+        ? medicine.genericName.trim()
+        : cleanName;
+    final catRaw = medicine.category.trim().isNotEmpty
+        ? medicine.category.trim()
+        : 'Medicines';
+    final catSlug = slugify(catRaw).isNotEmpty ? slugify(catRaw) : 'medicines';
+    final catName = catRaw.isNotEmpty
+        ? '${catRaw[0].toUpperCase()}${catRaw.substring(1)}'
+        : 'Medicines';
+
+    final price = medicine.price;
+    final mrp = medicine.costPrice > 0 && medicine.costPrice > price
+        ? (medicine.costPrice * 1.15).roundToDouble()
+        : (price > 0 ? (price * 1.1).roundToDouble() : 0.0);
+    final discountPercent = mrp > price && mrp > 0
+        ? (((mrp - price) / mrp) * 100).round()
+        : 0;
+
+    final inStock = medicine.stock > 0;
+    final resolvedPharmacyName = pharmacyName;
+    final resolvedCity = location.city.isNotEmpty ? location.city : 'Dehradun';
+    final resolvedArea = location.area.isNotEmpty ? location.area : 'Selaqui';
+    final desc =
+        '$cleanName available at $resolvedPharmacyName, $resolvedArea, $resolvedCity. Express delivery in 120 minutes.';
+
+    final tags = <String>[
+      catName,
+      'Dehradun Express',
+      '120 Mins Delivery',
+      cleanName,
+      if (medicine.manufacturer.trim().isNotEmpty) medicine.manufacturer.trim(),
+      if (resolvedPharmacyName.isNotEmpty) resolvedPharmacyName,
+      if (resolvedArea.isNotEmpty) resolvedArea,
+    ];
+
+    return {
+      'id': id,
+      'medicineId': id,
+      'productId': id,
+      'name': cleanName,
+      'medicineName': cleanName,
+      'medicine_name': cleanName,
+      'productName': cleanName,
+      'title': cleanName,
+      'brand': brandOrVerified,
+      'brandName': brandOrVerified,
+      'manufacturer': brandOrVerified,
+      'company': brandOrVerified,
+      'composition': genericOrName,
+      'salt': genericOrName,
+      'genericName': genericOrName,
+      'generic_name': genericOrName,
+      'category': catSlug,
+      'categoryId': catSlug,
+      'categoryName': catName,
+      'type': catSlug,
+      'price': price,
+      'sellingPrice': price,
+      'rate': price,
+      'discountedPrice': price,
+      'mrp': mrp > 0 ? mrp : price,
+      'marketPrice': mrp > 0 ? mrp : price,
+      'originalPrice': mrp > 0 ? mrp : price,
+      'costPrice': medicine.costPrice,
+      'discount': discountPercent,
+      'discountPercent': discountPercent,
+      'discountPercentage': discountPercent,
+      'stock': medicine.stock,
+      'stockCount': medicine.stock,
+      'stock_count': medicine.stock,
+      'quantity': medicine.stock,
+      'qty': medicine.stock,
+      'units': medicine.stock,
+      'totalStock': medicine.stock,
+      'inStock': inStock,
+      'in_stock': inStock,
+      'available': inStock,
+      'isAvailable': inStock,
+      'isActive': true,
+      'requiresPrescription': medicine.rxRequired,
+      'isPrescriptionRequired': medicine.rxRequired,
+      'prescriptionRequired': medicine.rxRequired,
+      'rx': medicine.rxRequired,
+      'rxRequired': medicine.rxRequired,
+      'scheduleH': medicine.rxRequired,
+      'rating': 4.8,
+      'reviewCount': 25,
+      'pharmacyId': location.docId,
+      'pharmacyName': resolvedPharmacyName,
+      'cityId': location.cityId.isNotEmpty ? location.cityId : 'dehradun',
+      'areaId': location.areaId.isNotEmpty ? location.areaId : 'selaqui',
+      'cityName': resolvedCity,
+      'areaName': resolvedArea,
+      'description': desc,
+      'about': desc,
+      'desc': desc,
+      'hsn': medicine.hsn,
+      'gstSlab': medicine.gstSlab,
+      'batchNo': medicine.batchNo,
+      'rackShelf': medicine.rackShelf,
+      'expiryDate': Timestamp.fromDate(medicine.expiryDate),
+      'imageUrls': <String>[],
+      'imageUrl': '',
+      'tags': tags,
+      'uses': <String>['General Healthcare', 'Prescription Care'],
+      'sideEffects': <String>[
+        'Consult doctor if symptoms persist',
+        'Take as directed by physician'
+      ],
+      'slug': slug,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+  }
+
+  Future<void> _syncMedicineToEcosystem(String docId, Medicine medicine) async {
+    try {
+      final slugRaw = slugify('${medicine.name} ${medicine.manufacturer}'.trim());
+      final slug = slugRaw.isNotEmpty ? slugRaw : slugify(medicine.name);
+      final payload = buildEcosystemStockPayload(
+        id: docId,
+        medicine: medicine,
+        slug: slug,
+      );
+
+      final batch = _db.batch();
+
+      // Root mirror: medicines subcollection
+      batch.set(
+        _rootPharmacyRef.collection('medicines').doc(docId),
+        medicine.toMap(),
+        SetOptions(merge: true),
+      );
+
+      // Nested mirror: stock & medicines subcollections
+      batch.set(
+        _nestedPharmacyRef.collection('stock').doc(docId),
+        medicine.toMap(),
+        SetOptions(merge: true),
+      );
+      batch.set(
+        _nestedPharmacyRef.collection('medicines').doc(docId),
+        medicine.toMap(),
+        SetOptions(merge: true),
+      );
+
+      // Root stock & products indexed by docId
+      batch.set(
+        _db.collection('stock').doc(docId),
+        payload,
+        SetOptions(merge: true),
+      );
+      batch.set(
+        _db.collection('products').doc(docId),
+        payload,
+        SetOptions(merge: true),
+      );
+
+      // Root stock & products indexed by slug
+      if (slug.isNotEmpty) {
+        final slugPayload = Map<String, dynamic>.from(payload)
+          ..['id'] = slug
+          ..['medicineId'] = slug
+          ..['productId'] = slug;
+        batch.set(
+          _db.collection('stock').doc(slug),
+          slugPayload,
+          SetOptions(merge: true),
+        );
+        batch.set(
+          _db.collection('products').doc(slug),
+          slugPayload,
+          SetOptions(merge: true),
+        );
+
+        // Also pharmacy-scoped slug doc
+        if (location.docId.isNotEmpty) {
+          final scopedId = '${location.docId}_$slug';
+          batch.set(
+            _db.collection('stock').doc(scopedId),
+            slugPayload,
+            SetOptions(merge: true),
+          );
+          batch.set(
+            _db.collection('products').doc(scopedId),
+            slugPayload,
+            SetOptions(merge: true),
+          );
+        }
+      }
+
+      await batch.commit();
+    } catch (_) {}
+  }
+
+  Future<int> syncAllMedicinesToEcosystem() async {
+    int syncedCount = 0;
+    try {
+      final snap = await _rootPharmacyRef.collection('stock').get();
+      for (final doc in snap.docs) {
+        final med = Medicine.fromMap(doc.data(), doc.id);
+        await _syncMedicineToEcosystem(doc.id, med);
+        syncedCount++;
+      }
+    } catch (_) {}
+    return syncedCount;
+  }
+
   Future<void> addMedicine(Medicine medicine) async {
     final docRef = await _rootPharmacyRef.collection('stock').add(medicine.toMap());
-    try {
-      await _nestedPharmacyRef
-          .collection('stock')
-          .doc(docRef.id)
-          .set(medicine.toMap(), SetOptions(merge: true));
-    } catch (_) {}
+    final medicineWithId = medicine.copyWith(id: docRef.id);
+    await _syncMedicineToEcosystem(docRef.id, medicineWithId);
   }
 
   Future<void> updateMedicine(String id, Map<String, dynamic> data) async {
     await _rootPharmacyRef.collection('stock').doc(id).update(data);
     try {
-      await _nestedPharmacyRef.collection('stock').doc(id).update(data);
+      await _rootPharmacyRef.collection('medicines').doc(id).set(data, SetOptions(merge: true));
+      await _nestedPharmacyRef.collection('stock').doc(id).set(data, SetOptions(merge: true));
+      await _nestedPharmacyRef.collection('medicines').doc(id).set(data, SetOptions(merge: true));
+
+      // Re-read full document to sync complete updated state to ecosystem
+      final updatedSnap = await _rootPharmacyRef.collection('stock').doc(id).get();
+      if (updatedSnap.exists && updatedSnap.data() != null) {
+        final updatedMed = Medicine.fromMap(updatedSnap.data()!, id);
+        await _syncMedicineToEcosystem(id, updatedMed);
+      }
     } catch (_) {}
   }
 
   Future<void> deleteMedicine(String id) async {
     await _rootPharmacyRef.collection('stock').doc(id).delete();
     try {
-      await _nestedPharmacyRef.collection('stock').doc(id).delete();
+      final batch = _db.batch();
+      batch.delete(_rootPharmacyRef.collection('medicines').doc(id));
+      batch.delete(_nestedPharmacyRef.collection('stock').doc(id));
+      batch.delete(_nestedPharmacyRef.collection('medicines').doc(id));
+
+      final deactivateData = {
+        'isActive': false,
+        'inStock': false,
+        'in_stock': false,
+        'available': false,
+        'isAvailable': false,
+        'stock': 0,
+        'stockCount': 0,
+        'quantity': 0,
+        'qty': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      batch.update(_db.collection('stock').doc(id), deactivateData);
+      batch.update(_db.collection('products').doc(id), deactivateData);
+
+      await batch.commit();
     } catch (_) {}
   }
 
@@ -119,10 +388,60 @@ class DatabaseService {
     final updateData = {'stock': FieldValue.increment(delta)};
     await _rootPharmacyRef.collection('stock').doc(medicineId).update(updateData);
     try {
-      await _nestedPharmacyRef
-          .collection('stock')
-          .doc(medicineId)
-          .update(updateData);
+      final batch = _db.batch();
+      batch.set(
+        _rootPharmacyRef.collection('medicines').doc(medicineId),
+        updateData,
+        SetOptions(merge: true),
+      );
+      batch.set(
+        _nestedPharmacyRef.collection('stock').doc(medicineId),
+        updateData,
+        SetOptions(merge: true),
+      );
+      batch.set(
+        _nestedPharmacyRef.collection('medicines').doc(medicineId),
+        updateData,
+        SetOptions(merge: true),
+      );
+
+      final ecosystemData = {
+        'stock': FieldValue.increment(delta),
+        'stockCount': FieldValue.increment(delta),
+        'stock_count': FieldValue.increment(delta),
+        'quantity': FieldValue.increment(delta),
+        'qty': FieldValue.increment(delta),
+        'units': FieldValue.increment(delta),
+        'totalStock': FieldValue.increment(delta),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      batch.set(
+        _db.collection('stock').doc(medicineId),
+        ecosystemData,
+        SetOptions(merge: true),
+      );
+      batch.set(
+        _db.collection('products').doc(medicineId),
+        ecosystemData,
+        SetOptions(merge: true),
+      );
+
+      await batch.commit();
+
+      // Check new stock level to update inStock boolean flag
+      final snap = await _rootPharmacyRef.collection('stock').doc(medicineId).get();
+      if (snap.exists && snap.data() != null) {
+        final currentStock = ((snap.data()!['stock'] ?? 0) as num).toInt();
+        final inStock = currentStock > 0;
+        final statusUpdate = {
+          'inStock': inStock,
+          'in_stock': inStock,
+          'available': inStock,
+          'isAvailable': inStock,
+        };
+        await _db.collection('stock').doc(medicineId).update(statusUpdate).catchError((_) {});
+        await _db.collection('products').doc(medicineId).update(statusUpdate).catchError((_) {});
+      }
     } catch (_) {}
   }
 
@@ -230,12 +549,37 @@ class DatabaseService {
           if (updatedByUid != null) 'updatedBy': updatedByUid,
         });
 
+        final medDocRef = _rootPharmacyRef.collection('medicines').doc(item.medicineId);
+        transaction.set(medDocRef, {
+          'stock': FieldValue.increment(-item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
         final nestedStockDocRef = _nestedPharmacyRef.collection('stock').doc(item.medicineId);
-        transaction.update(nestedStockDocRef, {
+        transaction.set(nestedStockDocRef, {
           'stock': FieldValue.increment(-item.quantity),
           'updatedAt': FieldValue.serverTimestamp(),
           if (updatedByUid != null) 'updatedBy': updatedByUid,
-        });
+        }, SetOptions(merge: true));
+
+        final nestedMedDocRef = _nestedPharmacyRef.collection('medicines').doc(item.medicineId);
+        transaction.set(nestedMedDocRef, {
+          'stock': FieldValue.increment(-item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        final ecoDelta = {
+          'stock': FieldValue.increment(-item.quantity),
+          'stockCount': FieldValue.increment(-item.quantity),
+          'stock_count': FieldValue.increment(-item.quantity),
+          'quantity': FieldValue.increment(-item.quantity),
+          'qty': FieldValue.increment(-item.quantity),
+          'units': FieldValue.increment(-item.quantity),
+          'totalStock': FieldValue.increment(-item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        transaction.set(_db.collection('stock').doc(item.medicineId), ecoDelta, SetOptions(merge: true));
+        transaction.set(_db.collection('products').doc(item.medicineId), ecoDelta, SetOptions(merge: true));
       }
 
       // 5. Create Sale document in root & nested
@@ -442,25 +786,43 @@ class DatabaseService {
       // Increment stock for each item & update batch/expiry
       for (final item in po.items) {
         final stockRef = _rootPharmacyRef.collection('stock').doc(item.medicineId);
+        final medRef = _rootPharmacyRef.collection('medicines').doc(item.medicineId);
         final nestedRef = _nestedPharmacyRef.collection('stock').doc(item.medicineId);
+        final nestedMedRef = _nestedPharmacyRef.collection('medicines').doc(item.medicineId);
 
-        transaction.update(stockRef, {
+        final updateData = {
           'stock': FieldValue.increment(item.quantity),
           'batchNo': item.batchNo,
           'expiryDate': Timestamp.fromDate(item.expiryDate),
           'costPrice': item.unitCost,
           'updatedAt': FieldValue.serverTimestamp(),
           'updatedBy': byUid,
-        });
+        };
 
-        transaction.update(nestedRef, {
+        transaction.update(stockRef, updateData);
+        transaction.set(medRef, updateData, SetOptions(merge: true));
+        transaction.set(nestedRef, updateData, SetOptions(merge: true));
+        transaction.set(nestedMedRef, updateData, SetOptions(merge: true));
+
+        final ecoInc = {
           'stock': FieldValue.increment(item.quantity),
+          'stockCount': FieldValue.increment(item.quantity),
+          'stock_count': FieldValue.increment(item.quantity),
+          'quantity': FieldValue.increment(item.quantity),
+          'qty': FieldValue.increment(item.quantity),
+          'units': FieldValue.increment(item.quantity),
+          'totalStock': FieldValue.increment(item.quantity),
+          'inStock': true,
+          'in_stock': true,
+          'available': true,
+          'isAvailable': true,
           'batchNo': item.batchNo,
           'expiryDate': Timestamp.fromDate(item.expiryDate),
           'costPrice': item.unitCost,
           'updatedAt': FieldValue.serverTimestamp(),
-          'updatedBy': byUid,
-        });
+        };
+        transaction.set(_db.collection('stock').doc(item.medicineId), ecoInc, SetOptions(merge: true));
+        transaction.set(_db.collection('products').doc(item.medicineId), ecoInc, SetOptions(merge: true));
       }
 
       // Mark PO as received
@@ -495,19 +857,37 @@ class DatabaseService {
       // 1. Restock returned items
       for (final item in returnedItems) {
         final stockRef = _rootPharmacyRef.collection('stock').doc(item.medicineId);
+        final medRef = _rootPharmacyRef.collection('medicines').doc(item.medicineId);
         final nestedRef = _nestedPharmacyRef.collection('stock').doc(item.medicineId);
+        final nestedMedRef = _nestedPharmacyRef.collection('medicines').doc(item.medicineId);
 
-        transaction.update(stockRef, {
+        final restockData = {
           'stock': FieldValue.increment(item.quantity),
           'updatedAt': FieldValue.serverTimestamp(),
           'updatedBy': byUid,
-        });
+        };
 
-        transaction.update(nestedRef, {
+        transaction.update(stockRef, restockData);
+        transaction.set(medRef, restockData, SetOptions(merge: true));
+        transaction.set(nestedRef, restockData, SetOptions(merge: true));
+        transaction.set(nestedMedRef, restockData, SetOptions(merge: true));
+
+        final ecoInc = {
           'stock': FieldValue.increment(item.quantity),
+          'stockCount': FieldValue.increment(item.quantity),
+          'stock_count': FieldValue.increment(item.quantity),
+          'quantity': FieldValue.increment(item.quantity),
+          'qty': FieldValue.increment(item.quantity),
+          'units': FieldValue.increment(item.quantity),
+          'totalStock': FieldValue.increment(item.quantity),
+          'inStock': true,
+          'in_stock': true,
+          'available': true,
+          'isAvailable': true,
           'updatedAt': FieldValue.serverTimestamp(),
-          'updatedBy': byUid,
-        });
+        };
+        transaction.set(_db.collection('stock').doc(item.medicineId), ecoInc, SetOptions(merge: true));
+        transaction.set(_db.collection('products').doc(item.medicineId), ecoInc, SetOptions(merge: true));
       }
 
       // 2. Create negative sale record for audit reconciliation

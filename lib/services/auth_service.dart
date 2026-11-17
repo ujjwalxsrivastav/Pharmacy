@@ -288,6 +288,7 @@ class AuthService {
       area: 'Selaqui',
       cityId: 'dehradun',
       areaId: 'selaqui',
+      pharmacyName: 'Klinixy Pharmacy',
     );
   }
 
@@ -300,6 +301,7 @@ class AuthService {
   ) {
     final city = (d['city'] ?? d['cityName'] ?? d['cityId'] ?? 'Dehradun').toString().trim();
     final area = (d['area'] ?? d['areaName'] ?? d['areaId'] ?? 'Selaqui').toString().trim();
+    final name = (d['name'] ?? d['pharmacyName'] ?? docId).toString().trim();
     final cityId = preferredCityId != null && preferredCityId.isNotEmpty
         ? preferredCityId
         : (d['cityId'] ?? PharmacyProfile.toKey(city)).toString();
@@ -314,6 +316,7 @@ class AuthService {
       area: area.isNotEmpty ? area : 'Selaqui',
       cityId: cityId.isNotEmpty ? cityId : 'dehradun',
       areaId: areaId.isNotEmpty ? areaId : 'selaqui',
+      pharmacyName: name.isNotEmpty ? name : docId,
     );
   }
 
@@ -406,6 +409,7 @@ class AuthService {
       area: 'Selaqui',
       cityId: 'dehradun',
       areaId: 'selaqui',
+      pharmacyName: 'Klinixy Pharmacy',
     );
   }
 

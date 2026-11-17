@@ -34,17 +34,34 @@ service cloud.firestore {
       allow write: if isPharmacyOwner(pharmacyId);
     }
 
+    // ── Root Products & Stock (Public for Customer App & Ecosystem Sync) ──
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /stock/{stockId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
     // ── Root Pharmacies Collection ───────────────────────────
     match /pharmacies/{pharmacyId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated();
       allow update: if isPharmacyOwner(pharmacyId) &&
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified']));
       allow delete: if isPharmacyOwner(pharmacyId);
 
-      // Inventory Catalog
+      // Inventory Catalog (Allow public read for Klinixy consumer app)
       match /stock/{medicineId} {
-        allow read, write: if isPharmacyOwner(pharmacyId);
+        allow read: if true;
+        allow write: if isPharmacyOwner(pharmacyId);
+      }
+
+      match /medicines/{medicineId} {
+        allow read: if true;
+        allow write: if isPharmacyOwner(pharmacyId);
       }
 
       // Sales & Invoices
@@ -70,14 +87,20 @@ service cloud.firestore {
 
     // ── Hierarchical Mirror (cities > areas > pharmacies) ─────
     match /cities/{cityId}/areas/{areaId}/pharmacies/{pharmacyId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated();
       allow update: if isPharmacyOwner(pharmacyId) &&
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified']));
       allow delete: if isPharmacyOwner(pharmacyId);
 
       match /stock/{medicineId} {
-        allow read, write: if isPharmacyOwner(pharmacyId);
+        allow read: if true;
+        allow write: if isPharmacyOwner(pharmacyId);
+      }
+
+      match /medicines/{medicineId} {
+        allow read: if true;
+        allow write: if isPharmacyOwner(pharmacyId);
       }
 
       match /sales/{saleId} {

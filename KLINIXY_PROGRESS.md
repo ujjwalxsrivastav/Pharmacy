@@ -276,3 +276,53 @@
   - Replaced all hardcoded fallback names in `DashboardScreen` and `HomeShell` with dynamic name resolution derived from `authUser` display name or email formatting.
   - Enabled profile updates even if the initial profile was null.
   - Added unit test suite `test/pharmacy_resolution_test.dart` (30/30 total tests green, 0 `flutter analyze` issues).
+
+---
+
+### [Ecosystem Sync] Full Medicine Stock Mirroring & Live Visibility on Klinixy Customer Frontend
+- **User Request:** "Jab koi medicine stock mein add ho wo proper klinixy ke frontend pe bhi visible honi chahiye." (When any medicine is added to stock, it must be properly visible on Klinixy's frontend too).
+- **Reverse Engineering Analysis (`https://klinixy.com/app/main.dart.js`):**
+  - Analyzed the minified compiled JavaScript of Klinixy's consumer web app.
+  - The customer catalog engine searches the root `stock` collection and maps medicine entities via parser `bcp(b1)`.
+  - Keys evaluated by customer app parser:
+    - Primary IDs: `id`, `medicineId`, `productId`, `slug`.
+    - Name variants: `name`, `medicineName`, `medicine_name`, `productName`, `title`, `drugName`.
+    - Brand & manufacturer: `brand`, `brandName`, `manufacturer`, `company`, `pharmacyName`.
+    - Composition: `composition`, `salt`, `genericName`, `generic_name`.
+    - Category: `category`, `categoryId`, `categoryName`, `type`.
+    - Pricing: `price`, `sellingPrice`, `rate`, `discountedPrice`, `mrp`, `marketPrice`, `originalPrice`.
+    - Stock & Availability: `stock`, `stockCount`, `stock_count`, `quantity`, `qty`, `units`, `totalStock`, `inStock`, `in_stock`, `available`, `isAvailable`, `isActive`.
+    - Rx & Schedules: `requiresPrescription`, `isPrescriptionRequired`, `prescriptionRequired`, `rx`, `scheduleH`.
+    - Discovery: `tags`, `uses`, `sideEffects`, `description`, `about`.
+- **Architectural Implementation in `DatabaseService` (`lib/services/database_service.dart`):**
+  1. **Multi-Store Atomicity on Add (`addMedicine`):**
+     - Writes to `pharmacies/{pharmacyId}/stock/{docId}`.
+     - Mirrors to `pharmacies/{pharmacyId}/medicines/{docId}` (legacy consumer queries).
+     - Mirrors to `cities/{cityId}/areas/{areaId}/pharmacies/{pharmacyId}/stock/{docId}`.
+     - Mirrors to `cities/{cityId}/areas/{areaId}/pharmacies/{pharmacyId}/medicines/{docId}`.
+     - Generates SEO/URL-safe slug via `DatabaseService.slugify` (e.g. `1-al-tablet-fdc-ltd`, `dolo-650-micro-labs`).
+     - Constructs full 35-field ecosystem payload via `buildEcosystemStockPayload`.
+     - Publishes to root `stock/{docId}` and `stock/{slug}` and `stock/{pharmacyId}_{slug}`.
+     - Publishes to root `products/{docId}` and `products/{slug}` and `products/{pharmacyId}_{slug}`.
+  2. **Real-Time Sync on Stock Mutation (`adjustStock`, `decrementStock`, `updateMedicine`, `deleteMedicine`):**
+     - Stock edits update quantities across root `stock`, root `products`, and all subcollections.
+     - In-stock availability flags (`inStock`, `available`) dynamically update to `false` when stock reaches 0.
+     - `deleteMedicine` performs soft-deactivation (`isActive: false`, `inStock: false`, `available: false`, `stock: 0`) in root catalog.
+  3. **Atomic Sales Transaction Sync (`processAtomicSale`):**
+     - POS billing transactions atomically decrement stock counts across both local pharmacy and global root `stock` & `products` collections simultaneously.
+  4. **Receiving Purchase Orders & Returns (`receivePurchaseOrder`, `processReturn`):**
+     - Receiving stock increments batch, expiry, and quantity across root ecosystem documents.
+     - Returns and refunds restock both pharmacy inventory and customer-facing catalogs.
+  5. **Automated Background Catalog Migration (`syncAllMedicinesToEcosystem`):**
+     - Integrated into `getMedicinesStream()` so any pre-existing inventory is synced automatically to root `stock` and `products`.
+- **Firestore Security Rules Updated & Deployed:**
+  - Configured `firestore.rules` to grant public read permissions (`allow read: if true;`) on root `products`, root `stock`, `pharmacies/{pharmacyId}/stock`, and `cities/.../stock` so customers can view real-time catalog items without authentication blocks.
+  - Deployed rules to Firebase (`firebase deploy --only firestore:rules --project klinixy-68521`).
+- **Web App Re-Built & Deployed:**
+  - Built web release: `flutter build web --release`.
+  - Deployed to Firebase Hosting: `firebase deploy --only hosting --project klinixy-68521`.
+  - Live at `https://pharmacy.klinixy.com` and `https://pharmacy-klinixy.web.app`.
+- **Quality & Verification:**
+  - Added test suite `test/ecosystem_stock_sync_test.dart` verifying payload schema, slugification, and stock zero out logic.
+  - Full test suite: 34/34 tests green (`flutter test`).
+  - Code analysis: 0 warnings, 0 errors (`flutter analyze`).
