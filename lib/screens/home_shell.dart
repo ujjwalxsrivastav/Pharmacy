@@ -69,16 +69,11 @@ class HomeShell extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
+                      Image.asset(
+                        AppAssets.appLogo,
                         width: 56,
                         height: 56,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                              colors: AppColors.primaryGradient),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.local_pharmacy_rounded,
-                            color: Colors.white, size: 28),
+                        fit: BoxFit.contain,
                       ),
                       const SizedBox(height: 14),
                       Text(

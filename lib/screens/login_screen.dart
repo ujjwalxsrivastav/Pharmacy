@@ -83,16 +83,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Logo ──
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                            colors: AppColors.primaryGradient),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const Icon(Icons.local_pharmacy_rounded,
-                          color: Colors.white, size: 34),
+                    Image.asset(
+                      AppAssets.appLogo,
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 20),
                     Text('Klinixy Pharmacy',

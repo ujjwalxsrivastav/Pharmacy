@@ -90,16 +90,11 @@ class BillReceiptDialog extends StatelessWidget {
               Center(
                 child: Column(
                   children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                            colors: AppColors.primaryGradient),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(Icons.local_pharmacy_rounded,
-                          color: Colors.white, size: 26),
+                    Image.asset(
+                      AppAssets.appLogo,
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 12),
                     Text(

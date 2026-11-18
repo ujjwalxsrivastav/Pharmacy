@@ -203,3 +203,9 @@ class AppTheme {
     );
   }
 }
+
+/// Centralized app asset paths
+class AppAssets {
+  AppAssets._();
+  static const String appLogo = 'images/klinixy_app_logo_transparent_trimmed.png';
+}

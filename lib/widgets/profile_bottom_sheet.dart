@@ -74,24 +74,11 @@ void showProfileBottomSheet(
                     ),
                     child: Row(
                       children: [
-                        Container(
+                        Image.asset(
+                          AppAssets.appLogo,
                           width: 52,
                           height: 52,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: AppColors.accentGradient,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(Icons.local_pharmacy_rounded,
-                              color: Colors.white, size: 28),
+                          fit: BoxFit.contain,
                         ),
                         const SizedBox(width: 14),
                         Expanded(
