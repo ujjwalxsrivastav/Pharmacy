@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/medicine.dart';
 import '../models/sale.dart';
@@ -162,6 +164,39 @@ class DatabaseService {
       }
     }
 
+    // Also include currently authenticated Auth UID if different from docId
+    try {
+      final authUid = FirebaseAuth.instance.currentUser?.uid;
+      if (authUid != null && authUid.isNotEmpty && authUid != location.docId && authUid != location.legacyDocId) {
+        addRef(_db.collection('pharmacies').doc(authUid));
+        if (cKey.isNotEmpty && aKey.isNotEmpty) {
+          addRef(_db
+              .collection('cities')
+              .doc(cKey)
+              .collection('areas')
+              .doc(aKey)
+              .collection('pharmacies')
+              .doc(authUid));
+        }
+        if (rawArea.isNotEmpty && rawArea != aKey && cKey.isNotEmpty) {
+          addRef(_db
+              .collection('cities')
+              .doc(cKey)
+              .collection('areas')
+              .doc(rawArea)
+              .collection('pharmacies')
+              .doc(authUid));
+        }
+        if (rawArea.isNotEmpty) {
+          addRef(_db
+              .collection('areas')
+              .doc(rawArea)
+              .collection('pharmacies')
+              .doc(authUid));
+        }
+      }
+    } catch (_) {}
+
     return refs;
   }
 
@@ -171,60 +206,34 @@ class DatabaseService {
         .collection('stock')
         .orderBy('name')
         .snapshots()
-        .asyncMap((rootSnap) async {
-      final medicinesMap = <String, Medicine>{};
-
-      for (final doc in rootSnap.docs) {
-        medicinesMap[doc.id] = Medicine.fromMap(doc.data(), doc.id);
-      }
-
-      // Check all other mirror locations for existing medicines to cross-backfill
-      for (final pRef in _allPharmacyDocRefs) {
-        if (pRef.path == _rootPharmacyRef.path) continue;
-        try {
-          final snap = await pRef.collection('stock').get();
-          for (final doc in snap.docs) {
-            if (!medicinesMap.containsKey(doc.id)) {
-              final med = Medicine.fromMap(doc.data(), doc.id);
-              medicinesMap[doc.id] = med;
-              _rootPharmacyRef
-                  .collection('stock')
-                  .doc(doc.id)
-                  .set(doc.data(), SetOptions(merge: true))
-                  .catchError((_) {});
-              _rootPharmacyRef
-                  .collection('medicines')
-                  .doc(doc.id)
-                  .set(doc.data(), SetOptions(merge: true))
-                  .catchError((_) {});
-            }
-          }
-        } catch (_) {}
-      }
-
-      final medicines = medicinesMap.values.toList();
+        .map((rootSnap) {
+      final medicines = rootSnap.docs
+          .map((doc) => Medicine.fromMap(doc.data(), doc.id))
+          .toList();
       medicines.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-      for (final med in medicines) {
-        _syncMedicineToEcosystem(med.id, med).catchError((_) {});
-        for (final pRef in _allPharmacyDocRefs) {
-          if (pRef.path != _rootPharmacyRef.path) {
-            pRef
-                .collection('stock')
-                .doc(med.id)
-                .set(med.toMap(), SetOptions(merge: true))
-                .catchError((_) {});
-            pRef
-                .collection('medicines')
-                .doc(med.id)
-                .set(med.toMap(), SetOptions(merge: true))
-                .catchError((_) {});
-          }
-        }
-      }
+      // Fire-and-forget: sync mirrors in background (don't block stream)
+      _backgroundMirrorSync(medicines);
 
       return medicines;
     });
+  }
+
+  /// Background sync: copies root stock to all mirrors and ecosystem.
+  /// Called once per stream emission, non-blocking.
+  void _backgroundMirrorSync(List<Medicine> medicines) {
+    for (final med in medicines) {
+      _syncMedicineToEcosystem(med.id, med).catchError((_) {});
+      for (final pRef in _allPharmacyDocRefs) {
+        if (pRef.path != _rootPharmacyRef.path) {
+          pRef
+              .collection('stock')
+              .doc(med.id)
+              .set(med.toMap(), SetOptions(merge: true))
+              .catchError((_) {});
+        }
+      }
+    }
   }
 
   String get pharmacyName => location.pharmacyName.isNotEmpty
@@ -458,42 +467,75 @@ class DatabaseService {
     final medicineWithId = medicine.copyWith(id: medId);
     final data = medicineWithId.toMap();
 
-    // 1. Write to all pharmacy doc mirrors in both 'stock' and 'medicines' subcollections
+    // 1. PRIMARY WRITE — Write to root pharmacy stock & medicines (source of truth).
+    await _rootPharmacyRef.collection('stock').doc(medId).set(data);
+    await _rootPharmacyRef.collection('medicines').doc(medId).set(data);
+
+    // 2. MIRROR WRITES — Write to all other pharmacy doc refs in parallel
+    final futures = <Future>[];
     for (final pRef in _allPharmacyDocRefs) {
-      try {
-        await pRef.collection('stock').doc(medId).set(data, SetOptions(merge: true));
-        await pRef.collection('medicines').doc(medId).set(data, SetOptions(merge: true));
-      } catch (_) {}
+      if (pRef.path == _rootPharmacyRef.path) continue;
+      futures.add(
+        pRef.collection('stock').doc(medId).set(data, SetOptions(merge: true)).catchError((e) {
+          debugPrint('Mirror stock write error on ${pRef.path}: $e');
+        }),
+      );
+      futures.add(
+        pRef.collection('medicines').doc(medId).set(data, SetOptions(merge: true)).catchError((e) {
+          debugPrint('Mirror medicines write error on ${pRef.path}: $e');
+        }),
+      );
     }
 
-    // 2. Sync to ecosystem (root 'stock' and 'products' collections for Klinixy customer app)
-    await _syncMedicineToEcosystem(medId, medicineWithId);
+    // 3. Ecosystem sync (root stock & products for Klinixy customer app)
+    futures.add(
+      _syncMedicineToEcosystem(medId, medicineWithId).catchError((e) {
+        debugPrint('Ecosystem sync error: $e');
+      }),
+    );
+
+    // Await all mirror and ecosystem writes so they appear immediately in Firestore Console
+    await Future.wait(futures);
   }
 
   Future<void> updateMedicine(String id, Map<String, dynamic> data) async {
-    for (final pRef in _allPharmacyDocRefs) {
-      try {
-        await pRef.collection('stock').doc(id).set(data, SetOptions(merge: true));
-        await pRef.collection('medicines').doc(id).set(data, SetOptions(merge: true));
-      } catch (_) {}
-    }
+    // PRIMARY WRITE — must succeed
+    await _rootPharmacyRef.collection('stock').doc(id).set(data, SetOptions(merge: true));
+    await _rootPharmacyRef.collection('medicines').doc(id).set(data, SetOptions(merge: true));
 
+    // MIRROR WRITES
+    final futures = <Future>[];
+    for (final pRef in _allPharmacyDocRefs) {
+      if (pRef.path == _rootPharmacyRef.path) continue;
+      futures.add(pRef.collection('stock').doc(id).set(data, SetOptions(merge: true)).catchError((e) {
+        debugPrint('Mirror stock update error on ${pRef.path}: $e');
+      }));
+      futures.add(pRef.collection('medicines').doc(id).set(data, SetOptions(merge: true)).catchError((e) {
+        debugPrint('Mirror medicines update error on ${pRef.path}: $e');
+      }));
+    }
+    await Future.wait(futures);
+
+    // Ecosystem sync
     try {
-      // Re-read full document to sync complete updated state to ecosystem
-      final updatedSnap = await _rootPharmacyRef.collection('stock').doc(id).get();
-      if (updatedSnap.exists && updatedSnap.data() != null) {
-        final updatedMed = Medicine.fromMap(updatedSnap.data()!, id);
+      final snap = await _rootPharmacyRef.collection('stock').doc(id).get();
+      if (snap.exists && snap.data() != null) {
+        final updatedMed = Medicine.fromMap(snap.data()!, id);
         await _syncMedicineToEcosystem(id, updatedMed);
       }
     } catch (_) {}
   }
 
   Future<void> deleteMedicine(String id) async {
+    // PRIMARY DELETE
+    await _rootPharmacyRef.collection('stock').doc(id).delete();
+    await _rootPharmacyRef.collection('medicines').doc(id).delete();
+
+    // MIRROR DELETES — fire-and-forget
     for (final pRef in _allPharmacyDocRefs) {
-      try {
-        await pRef.collection('stock').doc(id).delete();
-        await pRef.collection('medicines').doc(id).delete();
-      } catch (_) {}
+      if (pRef.path == _rootPharmacyRef.path) continue;
+      pRef.collection('stock').doc(id).delete().catchError((_) {});
+      pRef.collection('medicines').doc(id).delete().catchError((_) {});
     }
 
     try {
@@ -516,11 +558,16 @@ class DatabaseService {
 
   Future<void> adjustStock(String medicineId, int delta) async {
     final updateData = {'stock': FieldValue.increment(delta)};
+    
+    // PRIMARY WRITE — must succeed
+    await _rootPharmacyRef.collection('stock').doc(medicineId).update(updateData);
+    _rootPharmacyRef.collection('medicines').doc(medicineId).set(updateData, SetOptions(merge: true)).catchError((_) {});
+
+    // MIRROR WRITES — fire-and-forget
     for (final pRef in _allPharmacyDocRefs) {
-      try {
-        await pRef.collection('stock').doc(medicineId).update(updateData);
-        await pRef.collection('medicines').doc(medicineId).set(updateData, SetOptions(merge: true));
-      } catch (_) {}
+      if (pRef.path == _rootPharmacyRef.path) continue;
+      pRef.collection('stock').doc(medicineId).update(updateData).catchError((_) {});
+      pRef.collection('medicines').doc(medicineId).set(updateData, SetOptions(merge: true)).catchError((_) {});
     }
 
     try {
